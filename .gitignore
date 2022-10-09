@@ -1,0 +1,5 @@
+multimodality_env
+utils/*_folder
+utils/geojson
+*.pyc
+
