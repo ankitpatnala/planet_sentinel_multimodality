@@ -3,13 +3,28 @@ from torch import nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
 
-from utils.simclr import simclr
-
-
-
+from utils.simclr import simclr_loss_func
+from datasets.pretrain_dataloader import PretrainingDataset,pretrain_dataloader
 
 class MLP(nn.Module):
-    def __init__(self,num_layers,hidden_dim):
+    def __init__(self,
+            input_dim,
+            num_layers,
+            hidden_dim,
+            dropout=0):
+        super(MLP,self).__init__()
+
+        self.layers = []
+        for i in range(num_layers-1):
+            self.layers.append(nn.Sequential(nn.Linear(input_dim if i==0 else hidden_dim,hidden_dim),
+                            nn.ReLU(),
+                            nn.Dropout(dropout)))
+        self.layers.append(nn.Linear(hidden_dim,hidden_dim))
+    
+    def forward(self,x):
+        for layer in self.layers:
+            x = layer(x)
+        return x
 
 
 class Multimodal(pl.LightningModule):
@@ -43,5 +58,28 @@ class Multimodal(pl.LightningModule):
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(),lr=self.lr)
+
+
+if __name__ == "__main__":
+    sentinel_mlp = MLP(12,4,256)
+    planet_mlp = MLP(36,4,256)
+    sentinel_projector = MLP(256,2,256)
+    planet_projector = MLP(256,2,256)
+
+    multimodal = Multimodal(
+                        sentinel_mlp,
+                        planet_mlp,
+                        sentinel_projector,
+                        planet_projector,
+                        simclr_loss_func,
+                        1.0,
+                        0.001)
+
+    pretraining_dataset = PretrainingDataset("../../planet_sentinel_multimodality/utils/h5_folder/pretraining_point.h5")
+    pretraining_dataloader = pretrain_dataloader(pretraining_dataset,256,8,True,True)
+    trainer = pl.Trainer(accelerator='gpu',num_devices=1,max_epochs=1000)
+    trainer.fit(multimodal,pretraining_dataset)
+
+    
 
 
