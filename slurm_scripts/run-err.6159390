@@ -1,0 +1,68 @@
+Lmod has detected the following error: The following module(s) are unknown:
+"stages/2022"
+
+Please check the spelling or version number. Also try "module spider ..."
+It is also possible your cache file is out-of-date; it may help to try:
+  $ module --ignore_cache load "stages/2022"
+
+Also make sure that all modulefiles written in TCL start with the string
+#%Module
+
+
+
+
+Currently Loaded Modules:
+  1) Stages/2022             (S)    29) pybind11/.2.7.1          (H)
+  2) GCCcore/.11.2.0         (H)    30) SciPy-bundle/2021.10
+  3) zlib/.1.2.11            (H)    31) PyYAML/5.4.1
+  4) binutils/.2.37          (H)    32) MPFR/4.1.0
+  5) bzip2/.1.0.8            (H)    33) numactl/2.0.14
+  6) ncurses/.6.2            (H)    34) x264/.20210613           (H)
+  7) libreadline/.8.1        (H)    35) LAME/.3.100              (H)
+  8) Tcl/8.6.11                     36) x265/.3.4                (H)
+  9) SQLite/.3.36            (H)    37) libvpx/1.11.0
+ 10) XZ/.5.2.5               (H)    38) expat/.2.4.1             (H)
+ 11) GMP/6.2.1                      39) libpng/.1.6.37           (H)
+ 12) libffi/.3.4.2           (H)    40) Brotli/1.0.9
+ 13) OpenSSL/1.1                    41) freetype/.2.11.0         (H)
+ 14) libxml2/.2.9.10         (H)    42) util-linux/.2.37         (H)
+ 15) libxslt/.1.1.34         (H)    43) fontconfig/.2.13.94      (H)
+ 16) libyaml/.0.2.5          (H)    44) xorg-macros/.1.19.3      (H)
+ 17) PostgreSQL/13.4                45) libpciaccess/.0.16       (H)
+ 18) gflags/.2.2.2           (H)    46) X11/20210802
+ 19) libspatialindex/.1.9.3  (H)    47) FriBidi/1.0.10
+ 20) NASM/.2.15.05           (H)    48) FFmpeg/.4.4.1            (H,g)
+ 21) libjpeg-turbo/.2.1.1    (H)    49) LibTIFF/.4.3.0           (H)
+ 22) Python/3.9.6                   50) cuDNN/8.3.1.22-CUDA-11.5 (g)
+ 23) imkl/.2021.4.0          (H)    51) magma/2.6.1-CUDA-11.5    (g)
+ 24) nvidia-driver/.default  (H,g)  52) UCX-settings/RC-CUDA
+ 25) CUDA/11.5               (g)    53) UCX/default              (g)
+ 26) Ninja/1.10.2                   54) NCCL/2.12.7-1-CUDA-11.5  (g)
+ 27) protobuf/.3.17.3        (H)    55) expecttest/0.1.3
+ 28) protobuf-python/.3.17.3 (H)    56) PyTorch/1.11-CUDA-11.5   (g)
+
+  Where:
+   H:  Hidden Module
+   S:  Module is Sticky, requires --force to unload or purge
+   g:  built for GPU
+
+ 
+
+/p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/slurm_scripts/multimodality_env/lib/python3.9/site-packages/pytorch_lightning/trainer/connectors/accelerator_connector.py:447: LightningDeprecationWarning: Setting `Trainer(gpus=1)` is deprecated in v1.7 and will be removed in v2.0. Please use `Trainer(accelerator='gpu', devices=1)` instead.
+  rank_zero_deprecation(
+Multiprocessing is handled by SLURM.
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0,1,2,3     ]
+
+  | Name | Type | Params
+------------------------------
+0 | lstm | LSTM | 1.3 M 
+------------------------------
+1.3 M     Trainable params
+0         Non-trainable params
+1.3 M     Total params
+5.337     Total estimated model params size (MB)
+SLURM auto-requeueing enabled. Setting signal handlers.
