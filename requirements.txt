@@ -2,6 +2,6 @@ rasterio
 geopandas
 h5py
 sentinelhub
-torch
 breizhcrops
 lightning
+wandb

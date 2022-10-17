@@ -2,4 +2,13 @@ multimodality_env
 utils/*_folder
 utils/geojson
 *.pyc
+lightning_logs
+slurm_scripts/*-err.*
+slurm_scripts/*-out.*
+slurm_scripts/outputs/
+slurm_scripts/multimodality_booster_env
+wandb/
+run-err.*
+run-out.*
+slurm_scripts/planet_sentinel_multimodality_downstream
 

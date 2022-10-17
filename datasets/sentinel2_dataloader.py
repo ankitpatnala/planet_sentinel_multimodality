@@ -15,7 +15,7 @@ class Sentinel2Dataset(Dataset):
 
 
     def __getitem__(self,idx):
-        return (self.dataset['time_series'][idx]/10000).astype(np.float32), self.dataset['crop_labels'][idx]
+        return (self.dataset['time_series'][idx]/10000).astype(np.float32), np.squeeze(self.dataset['crop_labels'][idx])
 
 
 def sentinel2_dataloader(dataset,batch_size,num_workers,pin_memory,shuffle):

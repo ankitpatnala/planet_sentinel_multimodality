@@ -50,7 +50,6 @@ class Multimodal(pl.LightningModule):
 
     def training_step(self,batch,batch_idx):
         x1,x2 = batch
-        print(x1.shape,x2.shape)
         y1 = self.backbone_sentinel(x1)
         y2 = self.backbone_planet(x2)
         z1 = self.projector_sentinel(y1)
@@ -79,9 +78,9 @@ if __name__ == "__main__":
                         0.001)
 
     pretraining_dataset = PretrainingDataset("../../planet_sentinel_multimodality/utils/h5_folder/pretraining_point.h5")
-    pretraining_dataloader = pretrain_dataloader(pretraining_dataset,256,8,True,True)
+    pretraining_dataloader = pretrain_dataloader(pretraining_dataset,2048,16,True,True)
     trainer = pl.Trainer(accelerator='gpu',devices=1,max_epochs=1000)
-    trainer.fit(multimodal,pretraining_dataloader)
+    trainer.fit(multimodal,pretraining_dataloader,ckpt_path="./lightning_logs/version_42085/checkpoints/epoch=419-step=44940.ckpt")
 
     
 
