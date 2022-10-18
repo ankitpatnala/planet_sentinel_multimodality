@@ -5,3 +5,4 @@ sentinelhub
 breizhcrops
 lightning
 wandb
+optuna
