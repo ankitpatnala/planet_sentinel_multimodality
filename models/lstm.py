@@ -2,11 +2,14 @@ import breizhcrops as bzh
 import pytorch_lightning as pl
 import torch.nn.functional as F
 import torch
+import torchmetrics
 from pytorch_lightning.loggers import WandbLogger
 import wandb
+import optuna
 
 import h5py
 import sys
+import joblib
 
 sys.path.append("../../planet_sentinel_multi_modality")
 
@@ -28,6 +31,8 @@ class LSTM(pl.LightningModule):
         self.loss = loss
         self.optim = optimizer
         self.lr = lr
+        self.accuracy = torchmetrics.Accuracy()
+        self.accuracy_score = 0.0 
 
 
     def training_step(self,batch,batch_idx):
@@ -41,14 +46,29 @@ class LSTM(pl.LightningModule):
         x,y = batch
         y_pred = self.lstm(x)
         loss = self.loss(y_pred,y-1)
-        self.log_dict({'validation_loss':loss},prog_bar=True)
-        return loss
+        acc  = self.accuracy(y_pred,y-1)
+        return {'val_loss':loss,'val_acc':acc}
+
+        #self.log_dict({'validation_loss':loss,'validation_acc':acc},prog_bar=True)
+
+    def validation_epoch_end(self,outputs):
+        loss = []
+        acc = []
+        for output in outputs:
+            loss.append(output['val_loss'])
+            acc.append(output['val_acc'])
+        self.accuracy_score = torch.mean(torch.Tensor(acc))
+        loss = torch.mean(torch.Tensor(loss))
+        self.log_dict({"val_loss":loss,"val_acc":self.accuracy_score},prog_bar=True)
 
     def configure_optimizers(self):
         return self.optim(self.lstm.parameters(),lr=self.lr)
 
-def train_lstm():
-    lstm = LSTM(input_dim=12,num_classes=9)
+def train_lstm(trial):
+    lr = trial.suggest_float("lr",1e-5,1e-3,log=True)
+    hidden_dims = trial.suggest_categorical("hidden_dims",[32,64,128,256])
+    num_layers = trial.suggest_categorical("num_layers",[2,3,4,5,6])
+    lstm = LSTM(input_dim=12,num_classes=9,hidden_dims=hidden_dims,num_layers=num_layers,lr=lr)
     train_dataset = s2_loader.Sentinel2Dataset("../utils/h5_folder/train_sentinel_ts.hdf5")
     train_dataloader = s2_loader.sentinel2_dataloader(train_dataset,256,8,True,True)
     val_dataset = s2_loader.Sentinel2Dataset("../utils/h5_folder/val_sentinel_ts.hdf5")
@@ -65,13 +85,37 @@ def train_lstm():
 
 
     trainer = pl.Trainer(
-            gpus=1,
+            accelerator='gpu',
+            devices=1,
             max_epochs=50,
             logger=wandb_logger)
     trainer.fit(lstm,train_dataloader,val_dataloader)
 
+    return lstm.accuracy_score
+
+class HyperParameterCallback:
+    def __init__(self,pickle_file):
+        self.pickle_file = pickle_file
+
+    def __call__(self,study,trial):
+        joblib.dump(study,self.pickle_file)
+
+
+def hyper_parameter_sweeping(pickle_file=None):
+    if pickle_file is None:
+        hyper_parameter_callback = HyperParameterCallback("./study.pkl")
+        study = optuna.create_study(direction='minimize')
+        study.optimize(train_lstm,n_trials=10,callbacks=[hyper_parameter_callback])
+    else :
+        hyper_parameter_callback = HyperParameterCallback(pickle_file)
+        study = joblib.load(pickle_file)
+        study.optimize(train_lstm,n_trials=10,n_jobs=-1,callbacks=[hyper_parameter_callback])
+
+
 if __name__ == "__main__":
-    train_lstm()
+    hyper_parameter_sweeping()
+
+    #train_lstm()
 
 
 
