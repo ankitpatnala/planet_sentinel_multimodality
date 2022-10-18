@@ -11,4 +11,8 @@ wandb/
 run-err.*
 run-out.*
 slurm_scripts/planet_sentinel_multimodality_downstream
+practice_tests
+slurm_scripts/optuna_studies
+*.pdf
+*.png
 
