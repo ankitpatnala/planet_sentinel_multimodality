@@ -1,5 +1,6 @@
 multimodality_env
 utils/*_folder
+utils/*_folder2
 utils/geojson
 *.pyc
 lightning_logs
@@ -15,4 +16,6 @@ practice_tests
 slurm_scripts/optuna_studies
 *.pdf
 *.png
-
+slurm_scripts/*.pkl
+slurm_scripts/multimodality_cluster_env/
+slurm_scripts/planet_sentinel_multimodality_self_supervised/

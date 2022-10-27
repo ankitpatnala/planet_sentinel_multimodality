@@ -4,18 +4,18 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --account=deepacf
 #SBATCH --cpus-per-task=16
-#SBATCH --output=run-out.%j
-#SBATCH --error=run-err.%j
+#SBATCH --output=self_supervised_outputs/run-out.%j
+#SBATCH --error=self_supervised_outputs/run-err.%j
 #SBATCH --time=24:00:00
 #SBATCH --gres=gpu:1
-#SBATCH --partition=batch
+#SBATCH --partition=gpus
 
 ml stages/2022
 ml PyTorch
 module unload typing-extensions/3.10.0.0
 module unload Pillow-SIMD/9.0.1
 
-source ./multimodality_env/bin/activate
+source ./multimodality_cluster_env/bin/activate
 
 export PYTHONPATH="${PYTHONPATH}:/p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality"
 
@@ -27,5 +27,5 @@ export MASTER_PORT=12340
 master_addr=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
 export MASTER_ADDR=$master_addr
 
-python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/self_supervised_models/multimodal.py
+srun python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/self_supervised_models/multimodal.py
 

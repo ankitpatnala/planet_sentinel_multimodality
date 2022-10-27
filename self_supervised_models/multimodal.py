@@ -2,31 +2,13 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
+from pytorch_lightning.loggers import WandbLogger
 
 from utils.simclr import simclr_loss_func
 from datasets.pretrain_dataloader import PretrainingDataset,pretrain_dataloader
 
-class MLP(nn.Module):
-    def __init__(self,
-            input_dim,
-            num_layers,
-            hidden_dim,
-            dropout=0):
-        super(MLP,self).__init__()
 
-        self.layers = []
-        for i in range(num_layers-1):
-            self.layers.append(nn.Sequential(nn.Linear(input_dim if i==0 else hidden_dim,hidden_dim),
-                            nn.ReLU(),
-                            nn.Dropout(dropout)))
-        self.layers.append(nn.Linear(hidden_dim,hidden_dim))
-
-        self.mlp = nn.Sequential(*self.layers)
-    
-    def forward(self,x):
-        x = self.mlp(x)
-        return x
-
+from self_supervised_models.backbones import MLP,ResMLP 
 
 class Multimodal(pl.LightningModule):
     def __init__(
@@ -62,12 +44,15 @@ class Multimodal(pl.LightningModule):
         return [torch.optim.Adam(self.parameters(),lr=self.lr)]
 
 
-if __name__ == "__main__":
-    sentinel_mlp = MLP(12,4,256)
-    planet_mlp = MLP(36,4,256)
+def run_multimodal(backbone='mlp'):
+    if backbone == 'mlp':
+        sentinel_mlp = MLP(12,4,256)
+        planet_mlp = MLP(36,4,256)
+    if backbone == 'resmlp':
+        sentinel_mlp = ResMLP(12,4,256)
+        planet_mlp = ResMLP(36,4,256)
     sentinel_projector = MLP(256,2,256)
     planet_projector = MLP(256,2,256)
-
     multimodal = Multimodal(
                         sentinel_mlp,
                         planet_mlp,
@@ -76,11 +61,16 @@ if __name__ == "__main__":
                         simclr_loss_func,
                         1.0,
                         0.001)
-
     pretraining_dataset = PretrainingDataset("../../planet_sentinel_multimodality/utils/h5_folder/pretraining_point.h5")
-    pretraining_dataloader = pretrain_dataloader(pretraining_dataset,2048,16,True,True)
-    trainer = pl.Trainer(accelerator='gpu',devices=1,max_epochs=1000)
-    trainer.fit(multimodal,pretraining_dataloader,ckpt_path="./lightning_logs/version_42085/checkpoints/epoch=419-step=44940.ckpt")
+    pretraining_dataloader = pretrain_dataloader(pretraining_dataset,2048,32,True,True)
+    wandb_logger = WandbLogger(project="planet_sentinel_multimodality_self_supervised",
+                               version=f'multi_modal_self_supervised_backbone_{backbone}')
+    trainer = pl.Trainer(accelerator='gpu',devices=1,max_epochs=1000,logger=wandb_logger)
+    trainer.fit(multimodal,pretraining_dataloader)
+
+if __name__ == "__main__":
+    run_multimodal('resmlp')
+
 
     
 
