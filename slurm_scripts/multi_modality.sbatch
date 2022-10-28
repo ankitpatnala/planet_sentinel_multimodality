@@ -6,9 +6,9 @@
 #SBATCH --cpus-per-task=16
 #SBATCH --output=self_supervised_outputs/run-out.%j
 #SBATCH --error=self_supervised_outputs/run-err.%j
-#SBATCH --time=24:00:00
+#SBATCH --time=01:00:00
 #SBATCH --gres=gpu:1
-#SBATCH --partition=gpus
+#SBATCH --partition=develgpus
 
 ml stages/2022
 ml PyTorch

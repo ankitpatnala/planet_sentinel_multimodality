@@ -25,21 +25,17 @@ def return_self_supervised_model_sentinel2(ckpt_path,type='mlp'):
     if type == "resmlp":
         sentinel_mlp = ResMLP(12,4,256)
     ckpt = torch.load(ckpt_path)
-    sentinel_ckpt = (sentinel_mlp.state_dict())
-    print(sentinel_ckpt.keys())
-    for key in ckpt['state_dict'].keys():
-        if 'running_mean' in key:
-            print(key,ckpt['state_dict'][key].shape)
-    for key in sentinel_ckpt.keys():
-        if 'running_mean' in key:
-            print(key,sentinel_ckpt[key].shape)
-    new_ckpt = {}
+    new_ckpt = OrderedDict()
     for key in ckpt['state_dict'].keys():
         if 'backbone_sentinel' in key:
             mlp_key = re.sub('backbone_sentinel.',"",key)
             new_ckpt[mlp_key] = ckpt['state_dict'][key]
     sentinel_mlp.load_state_dict(new_ckpt)
     return sentinel_mlp,256
+
+def run_time_series_with_mlp(model,x):
+    b,t,n = x.shape
+    return model(x.reshape(-1,n)).reshape(b,t,-1)
 
 class LSTM(pl.LightningModule):
     def __init__(
@@ -56,7 +52,7 @@ class LSTM(pl.LightningModule):
         super(LSTM,self).__init__()
         self.save_hyperparameters()
         if self_supervised_ckpt is not None:
-            self.self_supervised,input_dim = return_self_supervised_model_sentinel2(self_supervised_ckpt,type='resmlp')
+            self.self_supervised,input_dim = return_self_supervised_model_sentinel2(self_supervised_ckpt,type='mlp')
             for param in self.self_supervised.parameters():
                 param.requires_grad=False
             self.self_supervised.eval()
@@ -80,7 +76,7 @@ class LSTM(pl.LightningModule):
         x,y = batch
         if self.embedding:
             with torch.no_grad():
-                x = self.self_supervised(x)
+                x = run_time_series_with_mlp(self.self_supervised,x)
         y_pred = self.lstm(x)
         loss = self.loss(y_pred,y-1)
         self.log_dict({'training_loss':loss},prog_bar=True)
@@ -90,7 +86,7 @@ class LSTM(pl.LightningModule):
         x,y = batch
         if self.embedding:
             with torch.no_grad():
-                x = self.self_supervised(x)
+                x = run_time_series_with_mlp(self.self_supervised,x)
         y_pred = self.lstm(x)
         loss = self.loss(y_pred,y-1)
         acc  = self.accuracy(y_pred,y-1)
@@ -174,5 +170,5 @@ def hyper_parameter_sweeping(pickle_file=None,ckpt_path=None):
 
 
 if __name__ == "__main__":
-    #hyper_parameter_sweeping(ckpt_path="/p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/slurm_scripts/planet_sentinel_multimodality_downstream/multi_modal_self_supervised/checkpoints/epoch=999-step=107000.ckpt")
-    hyper_parameter_sweeping(ckpt_path="/p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/slurm_scripts/planet_sentinel_multimodality_self_supervised/multi_modal_self_supervised_backbone_{backbone}/checkpoints/epoch=999-step=107000.ckpt")
+    hyper_parameter_sweeping(ckpt_path="/p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/slurm_scripts/planet_sentinel_multimodality_downstream/multi_modal_self_supervised/checkpoints/epoch=999-step=107000.ckpt")
+    #hyper_parameter_sweeping(ckpt_path="/p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/slurm_scripts/planet_sentinel_multimodality_self_supervised/multi_modal_self_supervised_backbone_resmlp/checkpoints/epoch=999-step=107000.ckpt")
