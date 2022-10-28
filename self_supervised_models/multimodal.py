@@ -7,8 +7,8 @@ from pytorch_lightning.loggers import WandbLogger
 from utils.simclr import simclr_loss_func
 from datasets.pretrain_dataloader import PretrainingDataset,pretrain_dataloader
 
-
 from self_supervised_models.backbones import MLP,ResMLP 
+from self_supervised_models.callbacks import SelfSupervisedCallback
 
 class Multimodal(pl.LightningModule):
     def __init__(
@@ -64,12 +64,18 @@ def run_multimodal(backbone='mlp'):
     pretraining_dataset = PretrainingDataset("../../planet_sentinel_multimodality/utils/h5_folder/pretraining_point.h5")
     pretraining_dataloader = pretrain_dataloader(pretraining_dataset,2048,32,True,True)
     wandb_logger = WandbLogger(project="planet_sentinel_multimodality_self_supervised",
-                               version=f'multi_modal_self_supervised_backbone_{backbone}')
-    trainer = pl.Trainer(accelerator='gpu',devices=1,max_epochs=1000,logger=wandb_logger)
+                               version=f'multi_modal_self_supervised_backbone_{backbone}_callbacktest')
+    self_supervised_callback = SelfSupervisedCallback()
+    trainer = pl.Trainer(
+            accelerator='gpu',
+            devices=1,
+            max_epochs=1000,
+            logger=wandb_logger,
+            callbacks=[self_supervised_callback])
     trainer.fit(multimodal,pretraining_dataloader)
 
 if __name__ == "__main__":
-    run_multimodal('resmlp')
+    run_multimodal('mlp')
 
 
     
