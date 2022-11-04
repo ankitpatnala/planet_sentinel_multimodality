@@ -8,6 +8,8 @@ import wandb
 import optuna
 
 from self_supervised_models.backbones import MLP, ResMLP
+from self_supervised_models.transformer_encoder import TransformerEncoder 
+
 from collections import OrderedDict
 import re
 
@@ -19,23 +21,40 @@ sys.path.append("../../planet_sentinel_multi_modality")
 
 from datasets import sentinel2_dataloader as s2_loader
 
-def return_self_supervised_model_sentinel2(ckpt_path,type='mlp'):
+def return_self_supervised_model_sentinel2(ckpt_path,type='mlp',config=None):
     if type == "mlp":
         sentinel_mlp = MLP(12,4,256)
+        model_name = 'backbone_sentinel'
+        emb_dim = 256
     if type == "resmlp":
         sentinel_mlp = ResMLP(12,4,256)
+        model_name = 'backbone_sentinel'
+        emb_dim = 256
+    if type == 'temporal_transformer':
+        sentinel_mlp = TransformerEncoder(12,
+                config['d_model'],
+                config['n_head'],
+                config['num_layer'],
+                config['mlp_dim'],
+                0.2)
+        model_name = 'sentinel_transformer_encoder'
+        emb_dim = config['mlp_dim']
     ckpt = torch.load(ckpt_path)
     new_ckpt = OrderedDict()
     for key in ckpt['state_dict'].keys():
-        if 'backbone_sentinel' in key:
-            mlp_key = re.sub('backbone_sentinel.',"",key)
+        if model_name in key:
+            mlp_key = re.sub(f'{model_name}.',"",key)
             new_ckpt[mlp_key] = ckpt['state_dict'][key]
     sentinel_mlp.load_state_dict(new_ckpt)
-    return sentinel_mlp,256
+    return sentinel_mlp,emb_dim
 
 def run_time_series_with_mlp(model,x):
     b,t,n = x.shape
-    return model(x.reshape(-1,n)).reshape(b,t,-1)
+    if hasattr(model,'return_embeddings'):
+        x =  model.return_embeddings(x)
+        return x
+    x = model(x.reshape(-1,n)).reshape(b,t,-1)
+    return x
 
 class LSTM(pl.LightningModule):
     def __init__(
@@ -48,11 +67,12 @@ class LSTM(pl.LightningModule):
             optimizer=torch.optim.Adam,
             lr=0.001,
             dropout=0.0,
-            self_supervised_ckpt=None):
+            self_supervised_ckpt=None,
+            **kwargs):
         super(LSTM,self).__init__()
         self.save_hyperparameters()
         if self_supervised_ckpt is not None:
-            self.self_supervised,input_dim = return_self_supervised_model_sentinel2(self_supervised_ckpt,type='mlp')
+            self.self_supervised,input_dim = return_self_supervised_model_sentinel2(self_supervised_ckpt,type='temporal_transformer',**kwargs)
             for param in self.self_supervised.parameters():
                 param.requires_grad=False
             self.self_supervised.eval()
@@ -70,7 +90,6 @@ class LSTM(pl.LightningModule):
         self.lr = lr
         self.accuracy = torchmetrics.Accuracy()
         self.accuracy_score = 0.0 
-
 
     def training_step(self,batch,batch_idx):
         x,y = batch
@@ -170,5 +189,7 @@ def hyper_parameter_sweeping(pickle_file=None,ckpt_path=None):
 
 
 if __name__ == "__main__":
-    hyper_parameter_sweeping(ckpt_path="/p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/slurm_scripts/planet_sentinel_multimodality_downstream/multi_modal_self_supervised/checkpoints/epoch=999-step=107000.ckpt")
-    #hyper_parameter_sweeping(ckpt_path="/p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/slurm_scripts/planet_sentinel_multimodality_self_supervised/multi_modal_self_supervised_backbone_resmlp/checkpoints/epoch=999-step=107000.ckpt")
+    #hyper_parameter_sweeping(ckpt_path="/p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/slurm_scripts/planet_sentinel_multimodality_downstream/multi_modal_self_supervised/checkpoints/epoch=999-step=107000.ckpt")
+    hyper_parameter_sweeping(ckpt_path="/p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/slurm_scripts/planet_sentinel_multimodality_self_supervised/multi_modal_self_supervised_backbone_resmlp/checkpoints/epoch=999-step=107000.ckpt")
+
+    #hyper_parameter_sweeping(ckpt_path="/p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/slurm_scripts/planet_sentinel_multimodality_self_supervised/temporal_contrastive_learing/checkpoints/epoch=999-step=94000-v13.ckpt")
