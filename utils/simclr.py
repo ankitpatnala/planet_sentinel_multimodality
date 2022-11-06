@@ -2,7 +2,6 @@ import torch
 import torch.nn.functional as F
 from typing import Optional
 
-
 def simclr_loss_func(
     z1: torch.Tensor,
     z2: torch.Tensor,
@@ -24,15 +23,12 @@ def simclr_loss_func(
     """
 
     device = z1.device
-
     b = z1.size(0)
     z = torch.cat((z1, z2), dim=0)
     z = F.normalize(z, dim=-1)
-
     logits = torch.einsum("if, jf -> ij", z, z) / temperature
     logits_max, _ = torch.max(logits, dim=1, keepdim=True)
     logits = logits - logits_max.detach()
-
     # positive mask are matches i, j (i from aug1, j from aug2), where i == j and matches j, i
     pos_mask = torch.zeros((2 * b, 2 * b), dtype=torch.bool, device=device)
     pos_mask[:, b:].fill_diagonal_(True)
@@ -47,7 +43,6 @@ def simclr_loss_func(
 
     exp_logits = torch.exp(logits) * logit_mask
     log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True))
-
     # compute mean of log-likelihood over positives
     mean_log_prob_pos = (pos_mask * log_prob).sum(1) / pos_mask.sum(1)
     # loss

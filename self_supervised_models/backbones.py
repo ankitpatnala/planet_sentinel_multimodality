@@ -6,13 +6,16 @@ class MLP(nn.Module):
             input_dim,
             num_layers,
             hidden_dim,
+            activation=nn.ReLU(),
+            use_norm = True,
             dropout=0):
         super(MLP,self).__init__()
 
         self.layers = []
         for i in range(num_layers-1):
             self.layers.append(nn.Sequential(nn.Linear(input_dim if i==0 else hidden_dim,hidden_dim),
-                            nn.ReLU(),
+                            activation,
+                            nn.BatchNorm1d(hidden_dim) if use_norm else nn.Identity(),
                             nn.Dropout(dropout)))
         self.layers.append(nn.Linear(hidden_dim,hidden_dim))
 
