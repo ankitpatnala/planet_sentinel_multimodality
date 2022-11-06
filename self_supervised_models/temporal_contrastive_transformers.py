@@ -2,10 +2,12 @@ import torch
 from torch import nn
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
+import numpy as np
 
 import pickle
 import math
 import joblib
+import copy
 
 import optuna
 
@@ -17,8 +19,10 @@ from self_supervised_models.backbones import MLP
 from self_supervised_models.callbacks import SelfSupervisedTransformerCallback
 from self_supervised_models.transformer_encoder import TransformerEncoder
 
+
+
 class TemporalContrastiveLearning(pl.LightningModule):
-    def __init__(self,planet_input_dims,sentinel_input_dims,d_model,n_head,num_layer,mlp_dim,dropout,loss,temperature,learning_rate):
+    def __init__(self,planet_input_dims,sentinel_input_dims,d_model,n_head,num_layer,mlp_dim,dropout,loss,temperature,learning_rate,is_mixup):
         super(TemporalContrastiveLearning,self).__init__()
         self.planet_transformer_encoder = TransformerEncoder(planet_input_dims,d_model,n_head,num_layer,mlp_dim,dropout,mode_type='planet')
         self.sentinel_transformer_encoder = TransformerEncoder(sentinel_input_dims,d_model,n_head,num_layer,mlp_dim,dropout)
@@ -26,6 +30,7 @@ class TemporalContrastiveLearning(pl.LightningModule):
         self.temperature = temperature
         self.lr = learning_rate
         self.downstream_accuracy = 0
+        self.is_mixup = is_mixup
         self.kwargs = {'d_model':d_model,
                        'n_head':n_head,
                        'num_layer':num_layer,
@@ -34,6 +39,15 @@ class TemporalContrastiveLearning(pl.LightningModule):
 
     def training_step(self,batch,batch_idx):
         x1,x2 = batch
+        if self.is_mixup:
+            random_num = torch.randn((1),device=x1.device).uniform_(0,1)
+            n = x1.shape[0]
+            x1_reverse = x1[[i for i in range(n-1,-1,-1)]]
+            x2_reverse = x2[[i for i in range(n-1,-1,-1)]]
+            x1_mix = x1*random_num + x1_reverse*(1-random_num)
+            x2_mix = x2*random_num + x2_reverse*(1-random_num)
+            x1 = torch.cat([x1,x1_reverse],dim=0)
+            x2 = torch.cat([x2,x2_reverse],dim=0)
         y1_embedding,y1_projector = self.sentinel_transformer_encoder(x1)
         y2_embedding,y2_projector = self.planet_transformer_encoder(x2)
         loss = self.loss(y1_projector,y2_projector,self.temperature)
@@ -42,7 +56,7 @@ class TemporalContrastiveLearning(pl.LightningModule):
         return loss
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(),lr=self.lr)
+        optimizer = torch.optim.AdamW(self.parameters(),lr=self.lr)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,1000,500000,5e-5)
         return [optimizer],[scheduler]
 
@@ -53,7 +67,7 @@ def run_temporal_contrastive(trial):
     mlp_dim = trial.suggest_categorical("mlp_dim",[64,128,256,512])
     lr = trial.suggest_uniform("lr",1e-5,1e-3)
 
-    temporal_contrastive = TemporalContrastiveLearning(36,12,d_model,n_head,n_layers,mlp_dim,0.2,simclr_loss_func,0.07,lr)
+    temporal_contrastive = TemporalContrastiveLearning(36,12,d_model,n_head,n_layers,mlp_dim,0.2,simclr_loss_func,0.07,lr,True)
     pretraining_time_dataset = PretrainingTimeDataset("../utils/h5_folder/pretraining_time.h5")
     pretraining_time_dataloader = pretrain_time_dataloader(pretraining_time_dataset,128,16,True,True)
     config = {'d_model':d_model,
@@ -89,7 +103,7 @@ class HyperParameterCallback:
 
 def hyper_parameter_sweeping(pickle_file=None,ckpt_path=None):
     if pickle_file is None:
-        hyper_parameter_callback = HyperParameterCallback("./temporal_contrastive_self_supervised_pos_2_batch128_normalize.pkl")
+        hyper_parameter_callback = HyperParameterCallback("./temporal_contrastive_self_supervised_pos_2_batch128_normalize_mixupi_adamw.pkl")
         study = optuna.create_study(direction='maximize')
         study.optimize(lambda trial: run_temporal_contrastive(
             trial),

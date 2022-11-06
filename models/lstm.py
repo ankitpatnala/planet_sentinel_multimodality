@@ -31,14 +31,15 @@ def return_self_supervised_model_sentinel2(ckpt_path,type='mlp',config=None):
         model_name = 'backbone_sentinel'
         emb_dim = 256
     if type == 'temporal_transformer':
-        sentinel_mlp = TransformerEncoder(12,
-                config['d_model'],
-                config['n_head'],
-                config['num_layer'],
-                config['mlp_dim'],
+        sentinel_mlp = TransformerEncoder(
+                12,
+                32,
+                16,   #config['n_head'],
+                4,   #config['num_layer'],
+                128,   #config['mlp_dim'],
                 0.2)
         model_name = 'sentinel_transformer_encoder'
-        emb_dim = config['mlp_dim']
+        emb_dim = 128 #config['mlp_dim']
     ckpt = torch.load(ckpt_path)
     new_ckpt = OrderedDict()
     for key in ckpt['state_dict'].keys():
@@ -190,6 +191,6 @@ def hyper_parameter_sweeping(pickle_file=None,ckpt_path=None):
 
 if __name__ == "__main__":
     #hyper_parameter_sweeping(ckpt_path="/p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/slurm_scripts/planet_sentinel_multimodality_downstream/multi_modal_self_supervised/checkpoints/epoch=999-step=107000.ckpt")
-    hyper_parameter_sweeping(ckpt_path="/p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/slurm_scripts/planet_sentinel_multimodality_self_supervised/multi_modal_self_supervised_backbone_resmlp/checkpoints/epoch=999-step=107000.ckpt")
+    #hyper_parameter_sweeping(ckpt_path="/p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/slurm_scripts/planet_sentinel_multimodality_self_supervised/multi_modal_self_supervised_backbone_resmlp/checkpoints/epoch=999-step=107000.ckpt")
 
-    #hyper_parameter_sweeping(ckpt_path="/p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/slurm_scripts/planet_sentinel_multimodality_self_supervised/temporal_contrastive_learing/checkpoints/epoch=999-step=94000-v13.ckpt")
+    hyper_parameter_sweeping(ckpt_path="/p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/slurm_scripts/planet_sentinel_multimodality_self_supervised/temporal_contrastive_learing_d_model_64_n_head_4_n_layers_8_mlp_dim_128_lr_0.0008778568797244744/checkpoints/epoch=999-step=24000-v15.ckpt")

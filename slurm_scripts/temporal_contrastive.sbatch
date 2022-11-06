@@ -20,12 +20,11 @@ source ./multimodality_cluster_env/bin/activate
 export PYTHONPATH="${PYTHONPATH}:/p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality"
 
 module list
-
 #export CUDA_VISIBLE_DEVICES="0,1,2,3"
 
 export MASTER_PORT=12340
 master_addr=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
 export MASTER_ADDR=$master_addr
 
-srun python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/self_supervised_models/temporal_contrastive_transformers.py
+CUDA_LAUNCHING_BLOCK=1 srun  python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/self_supervised_models/temporal_contrastive_transformers.py
 
