@@ -11,15 +11,15 @@ import h5py
 import datetime
 import pytz
 
-sentinel2_folder = "/home/junevo/multi_modality/dlr_fusion_competition_germany_train_source_sentinel_2/dlr_fusion_competition_germany_train_source_sentinel_2_33N_18E_242N_2018"
+sentinel2_folder = "/p/scratch/deepacf/kiste/patnala1/planet_sentinel_multimodality/dlr_fusion_competition_germany_train_source_sentinel_2/dlr_fusion_competition_germany_train_source_sentinel_2_33N_18E_242N_2018"
 bounding_box = os.path.join(sentinel2_folder,"bbox.pkl")
 clip = os.path.join(sentinel2_folder,"clp.npy")
 sentinel2_numpy = os.path.join(sentinel2_folder,"bands.npy")
 time_stamp = os.path.join(sentinel2_folder,"timestamp.pkl")
 
-planet_folder = "/home/junevo/multi_modality/dlr_fusion_competition_germany_train_source_planet_5day/"
-planet_day_folder_prefix = f"{planet_folder}dlr_fusion_competition_germany_train_source_planet_5day_33N_18E_242N_"
-crop_data_file = "~/multi_modality/dlr_fusion_competition_germany_train_labels/dlr_fusion_competition_germany_train_labels_33N_18E_242N/labels.geojson"
+planet_folder = "/p/scratch/deepacf/kiste/patnala1/planet_sentinel_multimodality/dlr_fusion_competition_germany_train_source_planet/"
+planet_day_folder_prefix = f"{planet_folder}dlr_fusion_competition_germany_train_source_planet_33N_18E_242N_"
+crop_data_file = "/p/scratch/deepacf/kiste/patnala1/planet_sentinel_multimodality/dlr_fusion_competition_germany_train_labels/dlr_fusion_competition_germany_train_labels_33N_18E_242N/labels.geojson"
 
 _,width,height,_ = 144,2400,2400,12
 
@@ -96,8 +96,8 @@ def get_sentinel_time_series(sentinel_array,idx_crop_list,output_file_name="sent
     file_name = f"{mode}_{output_file_name}"
     file_path = os.path.join(h5_folder,file_name)
     h5_file = h5py.File(file_path,'w')
-    h5_file.create_dataset('time_series',data=sentinel_array,shape=sentinel_array.shape,compression='gzip')
-    h5_file.create_dataset('crop_labels',shape=(sentinel_array.shape[0],1),data=crop_labels,compression='gzip')
+    h5_file.create_dataset('time_series',data=sentinel_array,shape=sentinel_array.shape)
+    h5_file.create_dataset('crop_labels',shape=(sentinel_array.shape[0],1),data=crop_labels)
     h5_file.close()
 
 def get_planet_time_series(planet_folder_name,idx_crop_list,output_file_name='planet_ts.hdf5',mode='train',neighbor_count=1):
@@ -285,8 +285,8 @@ class PlanetTimeSeries(TimeseriesDataset):
                                 mode='train',
                                 neighbor_count=self.neighbor_count)],axis=1)
         h5_file = h5py.File(os.path.join("./h5_folder",output_file_name),mode='w')
-        h5_file.create_dataset('time_series',data=time_series_array,shape=time_series_array.shape,compression='gzip')
-        h5_file.create_dataset('crop_labels',shape=(time_series_array.shape[0],1),data=crop_labels,compression='gzip')
+        h5_file.create_dataset('time_series',data=time_series_array,shape=time_series_array.shape)
+        h5_file.create_dataset('crop_labels',shape=(time_series_array.shape[0],1),data=crop_labels)
         h5_file.close()
     
     def return_val_data(self,output_file_name="val_planet_ts.hdf5"):
@@ -315,8 +315,8 @@ class PlanetTimeSeries(TimeseriesDataset):
                                 mode='val',
                                 neighbor_count=self.neighbor_count)],axis=1)
         h5_file = h5py.File(os.path.join("./h5_folder",output_file_name),mode='w')
-        h5_file.create_dataset('time_series',data=time_series_array,shape=time_series_array.shape,compression='gzip')
-        h5_file.create_dataset('crop_labels',shape=(time_series_array.shape[0],1),data=crop_labels,compression='gzip')
+        h5_file.create_dataset('time_series',data=time_series_array,shape=time_series_array.shape)
+        h5_file.create_dataset('crop_labels',shape=(time_series_array.shape[0],1),data=crop_labels)
         h5_file.close()
 
 def get_day_idx_of_sentinel2(sentinel2_time_stamp):
@@ -337,9 +337,9 @@ def get_pretraining_data(time_idx_tuples,indices,num_points,planet_folder,is_les
     for i in range(time_idx_tuples[0].shape[0]):
         indices_list.append(np.random.choice(len(indices[0]),num_points,replace=False))
     sentinel2_array = np.transpose(np.load(sentinel2_numpy),axes=[0,3,1,2])
+    sentinel_2_data  = []
+    planet_data = []
     if not is_less_data_in_sentinel2:
-        sentinel_2_data  = []
-        planet_data = []
         print(time_idx_tuples)
         for idx,time_index in enumerate(time_idx_tuples[1]):
             print(idx)
@@ -352,8 +352,46 @@ def get_pretraining_data(time_idx_tuples,indices,num_points,planet_folder,is_les
                 planet_folder[idx][1],
                 (indices[0][indices_list[idx]],indices[1][indices_list[idx]]),
                     neighbor_count=1))
-        return np.array(sentinel_2_data),np.array(planet_data)
+    else :
+        for idx,time_index in enumerate(time_idx_tuples[0]):
+            print(idx)
+            sentinel_2_data.extend(sentinel2_array[
+                idx,
+                :,
+                indices[0][indices_list[idx]],
+                indices[1][indices_list[idx]]])
+            planet_data.extend(get_planet_time_series(
+                planet_folder[time_index][1],
+                (indices[0][indices_list[idx]],indices[1][indices_list[idx]]),
+                neighbor_count=1))
+    return np.array(sentinel_2_data),np.array(planet_data)
 
+
+
+def get_time_wise_pretraining_data(indices,num_points,planet_folder):
+    selected_indices = np.random.choice(len(indices[0]),num_points,replace=False)
+    sentinel2_array = np.transpose(np.load(sentinel2_numpy),axes=[0,3,1,2])
+    sentinel_2_data = sentinel2_array[:,
+                                      :,
+                                      indices[0][selected_indices],
+                                      indices[1][selected_indices]]
+    planet_folder_list_day_wise = PlanetTimeSeries.sorted_planet(planet_folder)
+    for folder_idx,a_folder in enumerate(planet_folder_list_day_wise):
+        if folder_idx == 0:
+            planet_data = get_planet_time_series(
+                    a_folder[1],
+                    (indices[0][selected_indices],
+                     indices[1][selected_indices]),
+                    neighbor_count=1)
+        else:
+            planet_data = np.concatenate([planet_data,
+                (get_planet_time_series(
+                a_folder[1],
+                (indices[0][selected_indices],
+                indices[1][selected_indices]),
+                neighbor_count=1))],axis=1)
+        print(folder_idx)
+    return np.transpose(sentinel_2_data,axes=[2,0,1]),planet_data
 
 def planet_sentinel2_pairing(planet_folder,sentinel2_time_stamp,indices,num_points):
     planet_folder_list_day_wise = PlanetTimeSeries.sorted_planet(planet_folder)
@@ -361,6 +399,7 @@ def planet_sentinel2_pairing(planet_folder,sentinel2_time_stamp,indices,num_poin
         sentinel2_time_stamp_data = get_day_idx_of_sentinel2(pickle.load(pickle_reader))
     if len(planet_folder_list_day_wise) > len(sentinel2_time_stamp_data):
         time_idx_tuples = match_sentinel2_to_planet(planet_folder_list_day_wise,sentinel2_time_stamp_data)
+        print(time_idx_tuples)
         return get_pretraining_data(time_idx_tuples,indices,num_points,planet_folder_list_day_wise,is_less_data_in_sentinel2=True)
     else :
         time_idx_tuples = match_planet_to_sentinel2(planet_folder_list_day_wise,sentinel2_time_stamp_data)
@@ -380,11 +419,21 @@ class PretrainingDataset:
         self.indices = (field_mask[0],field_mask[1])
 
     def return_pretaining_data(self,output_file_name="pretraining_point.h5"):
-        sentinel2_data, planet_data = planet_sentinel2_pairing(self.planet_folder,self.sentinel2_time_stamp,self.indices,self.num_points)
-        h5_file = h5py.File(os.path.join("./h5_folder",output_file_name),mode="w")
-        h5_file.create_dataset("planet_data",shape=planet_data.shape,compression='gzip',data=planet_data)
-        h5_file.create_dataset("sentinel2_data",shape= sentinel2_data.shape,compression="gzip",data=sentinel2_data)
-        h5_file.close()
+        if self.pretraining_type == "point":
+            sentinel2_data, planet_data = planet_sentinel2_pairing(self.planet_folder,self.sentinel2_time_stamp,self.indices,self.num_points)
+            h5_file = h5py.File(os.path.join("./h5_folder",output_file_name),mode="w")
+            h5_file.create_dataset("planet_data",shape=planet_data.shape,data=planet_data)
+            h5_file.create_dataset("sentinel2_data",shape= sentinel2_data.shape,data=sentinel2_data)
+            h5_file.close()
+
+        if self.pretraining_type == "time":
+            sentinel2_data, planet_data = get_time_wise_pretraining_data(self.indices,self.num_points,self.planet_folder)
+            print(sentinel2_data.shape,planet_data.shape)
+            output_file_name = "pretraining_time.h5"
+            h5_file = h5py.File(os.path.join("./h5_folder",output_file_name),mode="w")
+            h5_file.create_dataset("planet_data",shape=planet_data.shape,data=planet_data)
+            h5_file.create_dataset("sentinel2_data",shape= sentinel2_data.shape,data=sentinel2_data)
+            h5_file.close()
 
 if __name__ == "__main__" :
     #time_series = TimeseriesDataset(geojson_folder=None,train_indices_folder=None,val_indices_folder=None)
@@ -400,12 +449,6 @@ if __name__ == "__main__" :
     #                            neighbor_count=1)
     #planet_time_series_data.return_train_data()
     #planet_time_series_data.return_val_data()
-    pretraining_dataset = PretrainingDataset("./geojson/pretaining.geojson",planet_folder=planet_folder,sentinel2_time_stamp=time_stamp)
+    pretraining_dataset = PretrainingDataset("./geojson/pretaining.geojson",pretraining_type='point',planet_folder=planet_folder,sentinel2_time_stamp=time_stamp,num_points=10000)
     pretraining_dataset.return_pretaining_data()
-    
-    
-
-
-    
-    
 

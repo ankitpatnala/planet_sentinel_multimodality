@@ -8,28 +8,45 @@ from utils.simclr import simclr_loss_func
 from datasets.pretrain_dataloader import PretrainingDataset,pretrain_dataloader
 
 from self_supervised_models.backbones import MLP,ResMLP 
-from self_supervised_models.callbacks import SelfSupervisedCallback
+from callbacks.callbacks import SelfSupervisedCallback
 
 class Multimodal(pl.LightningModule):
     def __init__(
             self,
-            backbone_sentinel,
-            backbone_planet,
-            projector_sentinel,
-            projector_planet,
+            planet_input_dims,
+            sentinel_input_dims,
+            num_layers,
+            hidden_dim,
             loss,
             temperature,
-            learning_rate):
+            lr,
+            pretrain_type='mlp',
+            **kwargs):
         super(Multimodal,self).__init__()
-        self.backbone_sentinel = backbone_sentinel
-        self.backbone_planet = backbone_planet
-        self.projector_sentinel = projector_sentinel
-        self.projector_planet = projector_planet
+        backbone_model = MLP if pretrain_type == 'mlp' else ResMLP
+        self.backbone_sentinel = backbone_model(sentinel_input_dims,num_layers,hidden_dim)
+        self.backbone_planet =  backbone_model(planet_input_dims,num_layers,hidden_dim)
+        self.projector_sentinel = MLP(hidden_dim,2,hidden_dim)
+        self.projector_planet = MLP(hidden_dim,2,hidden_dim)
         self.loss = loss
         self.temperature = temperature
-        self.lr = learning_rate
+        self.lr = lr
+        self.config = {'num_layers': num_layers,
+                'hidden_dim': hidden_dim}
 
+    @staticmethod
+    def add_model_specific_args(parent_parser):
+        parser = parent_parser.add_argument_group("mulitmodal")
+        parser.add_argument("--num_layers",type=int,nargs="+",default=[4])
+        parser.add_argument("--hidden_dim",type=int,nargs='+',default=[256])
+        parser.add_argument("--lr",type=float,nargs="+",default=[1e-3,1e-3])
+        parser.add_argument("--dropout",type=float,nargs="+",default=[0.0,0.0])
+        return parent_parser
 
+    @staticmethod
+    def return_hyper_parameter_args():
+        return ["num_layers","hidden_dim","lr","dropout"]
+    
     def training_step(self,batch,batch_idx):
         x1,x2 = batch
         y1 = self.backbone_sentinel(x1)

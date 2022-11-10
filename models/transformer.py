@@ -18,17 +18,7 @@ import joblib
 sys.path.append("../../planet_sentinel_multi_modality")
 
 from datasets import sentinel2_dataloader as s2_loader
-
-def return_self_supervised_model_sentinel2(ckpt_path):
-    sentinel_mlp = MLP(12,4,256)
-    ckpt = torch.load(ckpt_path)
-    new_ckpt = {}
-    for key in ckpt['state_dict'].keys():
-        if 'backbone_sentinel' in key:
-            mlp_key = re.sub('backbone_sentinel.',"",key)
-            new_ckpt[mlp_key] = ckpt['state_dict'][key]
-    sentinel_mlp.load_state_dict(new_ckpt)
-    return sentinel_mlp,256
+from models.return_self_supervised_model import return_self_supervised_model_sentinel2,run_time_series_with_mlp
 
 class Transformer(pl.LightningModule):
     def __init__(
@@ -38,16 +28,16 @@ class Transformer(pl.LightningModule):
             d_model=64,
             n_head=2,
             n_layers=5,
-            d_inner=128,
             loss=F.cross_entropy,
             optimizer=torch.optim.Adam,
             lr=0.001,
             dropout=0.0,
-            self_supervised_ckpt=None):
+            self_supervised_ckpt=None,
+            **kwargs):
         super(Transformer,self).__init__()
         self.save_hyperparameters()
         if self_supervised_ckpt is not None:
-            self.self_supervised,input_dim = return_self_supervised_model_sentinel2(self_supervised_ckpt)
+            self.self_supervised,input_dim = return_self_supervised_model_sentinel2(self_supervised_ckpt,**kwargs)
             for param in self.self_supervised.parameters():
                 param.requires_grad=False
             self.self_supervised.eval()
@@ -60,20 +50,33 @@ class Transformer(pl.LightningModule):
                     d_model=d_model,
                     n_head=n_head,
                     n_layers=n_layers,
-                    d_inner=d_inner,
+                    d_inner=2*d_model,
                     dropout=dropout)
         self.loss = loss
         self.optim = optimizer
         self.lr = lr
         self.accuracy = torchmetrics.Accuracy()
-        self.accuracy_score = 0.0 
+        self.accuracy_score = 0.0
 
+    @staticmethod
+    def add_model_specific_args(parent_parser):
+        parser = parent_parser.add_argument_group("transformer")
+        parser.add_argument("--lr",type=float,nargs="+",default=[1e-3,1e-3])
+        parser.add_argument("--d_model",type=int,nargs="+",default=[128])
+        parser.add_argument("--n_head",type=int,nargs="+",default=[4])
+        parser.add_argument("--n_layers",type=int,nargs="+",default=[4])
+        parser.add_argument("--dropout",type=float,nargs="+",default=[0.0,0.0])
+        return parent_parser
+
+    @staticmethod
+    def return_hyper_parameter_args():
+        return ["lr","d_model","n_head","n_layers","dropout"]
 
     def training_step(self,batch,batch_idx):
         x,y = batch
         if self.embedding:
             with torch.no_grad():
-                x = self.self_supervised(x)
+                x = run_time_series_with_mlp(self.self_supervised,x)
         y_pred = self.transformer(x)
         loss = self.loss(y_pred,y-1)
         self.log_dict({'training_loss':loss},prog_bar=True)
@@ -83,7 +86,7 @@ class Transformer(pl.LightningModule):
         x,y = batch
         if self.embedding:
             with torch.no_grad():
-                x = self.self_supervised(x)
+                x = run_time_series_with_mlp(self.self_supervised,x)
         y_pred = self.transformer(x)
         loss = self.loss(y_pred,y-1)
         acc  = self.accuracy(y_pred,y-1)
@@ -105,7 +108,7 @@ class Transformer(pl.LightningModule):
 def train_transformer(trial,ckpt_path=None):
     lr = trial.suggest_float("lr",1e-5,1e-3,log=True)
     d_model = trial.suggest_categorical("d_model",[32,64,128])
-    n_head = trial.suggest_categorical("d_head",[2,4,8])
+    n_head = trial.suggest_categorical("n_head",[2,4,8])
     n_layers = trial.suggest_categorical("n_layers",[2,3,4,5,6])
     d_inner = 2*d_model
     dropout = trial.suggest_uniform("dropout",0.0,0.6)

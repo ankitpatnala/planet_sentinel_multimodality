@@ -5,8 +5,9 @@ import torch
 
 import h5py
 import pickle
+import random
 
-class PretrainingTimeDataset(Dataset):
+class PretrainingTimeDataset2(Dataset):
     def __init__(self,file_path):
         self.dataset = h5py.File(file_path)
 
@@ -15,7 +16,7 @@ class PretrainingTimeDataset(Dataset):
 
     def __getitem__(self,idx):
         return ((self.dataset['sentinel2_data'][idx]/10000).astype(np.float32),
-                (np.reshape(self.dataset['planet_data'][idx]/10000,(73,-1)).astype(np.float32)))
+                ((self.dataset['planet_data'][idx]/10000).astype(np.float32)))
 
 
 class PretrainingTimeDataset(Dataset):
@@ -42,13 +43,27 @@ class PretrainingTimeDataset(Dataset):
                     (torch.Tensor((self.dataset['sentinel2_data'][idx]/10000).astype(np.float32))-self.sentinel_mean)/self.sentinel_var)
             normalize_planet = ((
                     (torch.Tensor(self.dataset['planet_data'][idx]/10000).permute(0,2,3,1)-self.planet_mean)/self.planet_var).permute(
-                            0,3,1,2).reshape(73,-1))
+                            0,3,1,2).reshape(365,-1))
 
             return normalize_sentinel,normalize_planet
 
+def seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
 
-def pretrain_time_dataloader(dataset,batch_size,num_workers,pin_memory,shuffle):
-    return DataLoader(dataset,batch_size=batch_size,shuffle=shuffle,num_workers=num_workers,pin_memory=pin_memory)
+g = torch.Generator()
+g.manual_seed(0)
+
+def pretrain_time_dataloader(dataset,batch_size,num_workers,pin_memory,shuffle,is_random_seed):
+    return DataLoader(
+            dataset,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            num_workers=num_workers,
+            pin_memory=pin_memory,
+            worker_init_fn=seed_worker if is_random_seed else None,
+            generator=g if is_random_seed else None)
 
 
 if __name__ == "__main__":
@@ -56,7 +71,7 @@ if __name__ == "__main__":
     sentinel_std = 0
     planet_mean = 0
     planet_std = 0
-    pretraining_time_dataset = PretrainingTimeDataset2("../utils/h5_folder/pretraining_time.h5")
+    pretraining_time_dataset = PretrainingTimeDataset("../utils/h5_folder/pretraining_time.h5")
     pretraining_data_loader = pretrain_time_dataloader(pretraining_time_dataset,3000,8,True,False)
 
     for idx,data in enumerate(pretraining_data_loader):

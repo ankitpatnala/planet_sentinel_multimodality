@@ -19,3 +19,8 @@ slurm_scripts/optuna_studies
 slurm_scripts/*.pkl
 slurm_scripts/multimodality_cluster_env/
 slurm_scripts/planet_sentinel_multimodality_self_supervised/
+slurm_scripts/planet_sentinel_baseline/
+slurm_scripts/planet_sentinel_multimodality_self_supervised_point/
+slurm_scripts/planet_sentinel_multimodality_self_supervised_temporal/
+utils/h5_folder_v2/
+*.pkl
