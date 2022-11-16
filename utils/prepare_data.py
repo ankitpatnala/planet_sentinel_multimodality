@@ -10,6 +10,7 @@ import h5py
 
 import datetime
 import pytz
+import matplotlib.pyplot as plt
 
 sentinel2_folder = "/p/scratch/deepacf/kiste/patnala1/planet_sentinel_multimodality/dlr_fusion_competition_germany_train_source_sentinel_2/dlr_fusion_competition_germany_train_source_sentinel_2_33N_18E_242N_2018"
 bounding_box = os.path.join(sentinel2_folder,"bbox.pkl")
@@ -418,7 +419,7 @@ class PretrainingDataset:
         field_mask = np.where(mask_array==1)
         self.indices = (field_mask[0],field_mask[1])
 
-    def return_pretaining_data(self,output_file_name="pretraining_point.h5"):
+    def return_pretaining_data(self,output_file_name="pretraining_point2.h5"):
         if self.pretraining_type == "point":
             sentinel2_data, planet_data = planet_sentinel2_pairing(self.planet_folder,self.sentinel2_time_stamp,self.indices,self.num_points)
             h5_file = h5py.File(os.path.join("./h5_folder",output_file_name),mode="w")
@@ -429,11 +430,29 @@ class PretrainingDataset:
         if self.pretraining_type == "time":
             sentinel2_data, planet_data = get_time_wise_pretraining_data(self.indices,self.num_points,self.planet_folder)
             print(sentinel2_data.shape,planet_data.shape)
-            output_file_name = "pretraining_time.h5"
+            output_file_name = "pretraining_time2.h5"
             h5_file = h5py.File(os.path.join("./h5_folder",output_file_name),mode="w")
             h5_file.create_dataset("planet_data",shape=planet_data.shape,data=planet_data)
             h5_file.create_dataset("sentinel2_data",shape= sentinel2_data.shape,data=sentinel2_data)
             h5_file.close()
+
+def plot_all(planet_folder):
+    #sentinel2_data = np.load(sentinel2_numpy)
+    #max_value = sentinel2_data.max()
+    #for i in range(sentinel2_data.shape[0]):
+    #    sentinel_image = sentinel2_data[i]/(max_value)
+    #    print(sentinel_image.shape)
+    #    plt.axis('off')
+    #    plt.imsave(f"/p/scratch/deepacf/kiste/patnala1/multimodal_images/sentinel2/{i}.png",sentinel_image[:,:,[4,3,2]])
+    planet_folder_list_day_wise = PlanetTimeSeries.sorted_planet(planet_folder)
+    for idx,planet_folder in enumerate(planet_folder_list_day_wise):
+        planet_array = read_planet_day_wise(planet_folder[1])
+        sample_array = np.transpose(planet_array.read([3,2,1]),[1,2,0])
+        print(sample_array.shape)
+        plt.axis('off')
+        plt.imsave(f"/p/scratch/deepacf/kiste/patnala1/multimodal_images/planet/{idx}.png",sample_array/10000)
+
+
 
 if __name__ == "__main__" :
     #time_series = TimeseriesDataset(geojson_folder=None,train_indices_folder=None,val_indices_folder=None)
@@ -449,6 +468,8 @@ if __name__ == "__main__" :
     #                            neighbor_count=1)
     #planet_time_series_data.return_train_data()
     #planet_time_series_data.return_val_data()
-    pretraining_dataset = PretrainingDataset("./geojson/pretaining.geojson",pretraining_type='point',planet_folder=planet_folder,sentinel2_time_stamp=time_stamp,num_points=10000)
-    pretraining_dataset.return_pretaining_data()
+    #pretraining_dataset = PretrainingDataset("./geojson/pretaining.geojson",pretraining_type='point',planet_folder=planet_folder,sentinel2_time_stamp=time_stamp,num_points=100000)
+   # pretraining_dataset = PretrainingDataset("./geojson/pretaining.geojson",pretraining_type='time',planet_folder=planet_folder,sentinel2_time_stamp=time_stamp,num_points=150000)
+    #pretraining_dataset.return_pretaining_data()
+    plot_all(planet_folder)
 

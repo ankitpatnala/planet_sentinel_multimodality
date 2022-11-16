@@ -17,13 +17,14 @@ from datasets.pretrain_time_dataloader import PretrainingTimeDataset,pretrain_ti
 
 from self_supervised_models.backbones import MLP
 from callbacks.callbacks import SelfSupervisedCallback
-from self_supervised_models.transformer_encoder import TransformerEncoder
+#from self_supervised_models.transformer_encoder import TransformerEncoder
+from self_supervised_models.temporal_vit_time import TransformerEncoder
 
 class TemporalContrastiveLearning(pl.LightningModule):
-    def __init__(self,planet_input_dims,sentinel_input_dims,d_model,n_head,num_layer,mlp_dim,dropout,loss,temperature,lr,is_mixup,**kwargs):
+    def __init__(self,planet_input_dims,sentinel_input_dims,d_model,n_head,num_layer,mlp_dim,dropout,loss,temperature,lr,is_mixup,projector_layer,**kwargs):
         super(TemporalContrastiveLearning,self).__init__()
-        self.planet_transformer_encoder = TransformerEncoder(planet_input_dims,d_model,n_head,num_layer,mlp_dim,dropout,mode_type='planet')
-        self.sentinel_transformer_encoder = TransformerEncoder(sentinel_input_dims,d_model,n_head,num_layer,mlp_dim,dropout)
+        self.planet_transformer_encoder = TransformerEncoder(planet_input_dims,d_model,n_head,num_layer,mlp_dim,dropout,projector_layer,mode_type='planet')
+        self.sentinel_transformer_encoder = TransformerEncoder(sentinel_input_dims,d_model,n_head,num_layer,mlp_dim,dropout,projector_layer)
         self.loss = loss
         self.temperature = temperature
         self.lr = lr
@@ -33,18 +34,20 @@ class TemporalContrastiveLearning(pl.LightningModule):
                        'n_head':n_head,
                        'num_layer':num_layer,
                        'mlp_dim':mlp_dim,
-                       'dropout':dropout}
+                       'dropout':dropout,
+                       'projector_layer':projector_layer}
     
     @staticmethod
     def add_model_specific_args(parent_parser):
         parser = parent_parser.add_argument_group("temporal_transfomer")
         parser.add_argument("--d_model",type=int,nargs="+",default=[128])
         parser.add_argument("--n_head",type=int,nargs='+',default=[4])
-        parser.add_argument("--num_layer",type=float,nargs="+",default=[4])
+        parser.add_argument("--num_layer",type=int,nargs="+",default=[4])
         parser.add_argument("--mlp_dim",type=int,nargs="+",default=[256])
         parser.add_argument("--lr",type=float,nargs="+",default=[1e-3,1e-3])
         parser.add_argument("--dropout",type=float,nargs="+",default=[0.0,0.0])
         parser.add_argument("--is_mixup",action='store_true')
+        parser.add_argument("--projector_layer",type=int,default=2)
         return parent_parser
 
     @staticmethod
@@ -71,7 +74,7 @@ class TemporalContrastiveLearning(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(),lr=self.lr)
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,1000,500000,5e-5)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,int(0.05*self.trainer.max_epochs),self.trainer.max_epochs,5e-5)
         return [optimizer],[scheduler]
 
 def run_temporal_contrastive(trial):
@@ -105,7 +108,6 @@ def run_temporal_contrastive(trial):
             callbacks=[callback])
 
     trainer.fit(temporal_contrastive,pretraining_time_dataloader)
-    print(temporal_contrastive.downstream_accuracy)
     return temporal_contrastive.downstream_accuracy
 
 class HyperParameterCallback:

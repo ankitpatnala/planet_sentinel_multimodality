@@ -27,37 +27,35 @@ export MASTER_PORT=12340
 master_addr=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
 export MASTER_ADDR=$master_addr
 
-#srun python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main.py \
-#		--method lstm \
-#		--hidden_dims 128\
-#		--num_layers 5\
-#		--lr 7.8e-5 7.8e-5    \
-#		--dropout 0.6 0.6 \
-#		--accelerator gpu \
-#		--devices 1 \
-#		--max_epochs 50 \
-#		--backbone_type resmlp \
-#		--self_supervised_ckpt planet_sentinel_multimodality_self_supervised/3rig1hqt/checkpoints/epoch=999-step=704000.ckpt
-
-srun python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main.py \
-		--method inception \
-		--hidden_dims 128 256 512\
-		--num_layers 2 4 6 8\
+python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main.py \
+		--method lstm \
+		--hidden_dims 32 64 128 256\
+		--num_layers 2 3 4 5 6\
 		--lr 1e-5 1e-3    \
-		--kernel_size 40 80 120 160 \
-		--hyperparameter_tuning \
-		#--backbone_type resmlp \
-		#--self_supervised_ckpt planet_sentinel_multimodality_self_supervised/3rig1hqt/checkpoints/epoch=999-step=704000.ckpt
-
+		--dropout 0.0 0.6 \
+		--accelerator gpu \
+		--devices 1 \
+		--max_epochs 50 \
+		--hyperparameter_tuning
+#		--backbone_type resmlp \
+#		--self_supervised_ckpt planet_sentinel_multimodality_self_supervised_point/zhl45sgk/checkpoints/epoch=99-step=703200.ckpt
 
 #srun python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main.py \
+#		--method inception \
+#		--hidden_dims 128 256 512\
+#		--num_layers 2 4 6 8\
+#		--lr 1e-5 1e-3    \
+#		--kernel_size 40 80 120 160 \
+#		--hyperparameter_tuning \
+#		#--backbone_type resmlp \
+#		#--self_supervised_ckpt planet_sentinel_multimodality_self_supervised/3rig1hqt/checkpoints/epoch=999-step=704000.ckpt
+
+
+#python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main.py \
 #		--method transformer \
 #		--d_model 32 64 128  \
 #		--n_layers 2 3 4 5 6 \
 #		--n_head 2 4 8 \
 #		--lr 1e-5 1e-3    \
 #		--dropout 0.0 0.6 \
-#		--accelerator gpu \
-#		--devices 1 \
-#		--max_epochs 50 \
 #		--hyperparameter_tuning

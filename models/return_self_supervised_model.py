@@ -1,7 +1,8 @@
 import joblib
 import optuna
 from self_supervised_models.backbones import MLP,ResMLP
-from self_supervised_models.transformer_encoder import TransformerEncoder
+#from self_supervised_models.transformer_encoder import TransformerEncoder
+from self_supervised_models.temporal_vit_time import TransformerEncoder
 
 from collections import OrderedDict
 import re
@@ -33,9 +34,11 @@ def return_self_supervised_model_sentinel2(ckpt_path,pretrain_type='temporal_tra
                 config['n_head'] if config is not None else 4,
                 config['num_layer'] if config is not None else 4,
                 config['mlp_dim'] if config is not None else 256,
-                config['dropout'] if config is not None else 0.0)
+                config['dropout'] if config is not None else 0.0,
+                config['projector_layer'] if config is not None else 2)
         backbone_model_name = 'sentinel_transformer_encoder'
-        emb_dim = config['mlp_dim'] if config is not None else 256
+        #emb_dim = config['mlp_dim'] if config is not None else 256
+        emb_dim = config['d_model'] if config is not None else 128
     ckpt = torch.load(ckpt_path)
     new_ckpt = OrderedDict()
     for key in ckpt['state_dict'].keys():

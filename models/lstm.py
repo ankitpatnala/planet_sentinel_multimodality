@@ -43,7 +43,9 @@ class LSTM(pl.LightningModule):
         self.lr = lr
         self.dropout = dropout
         self.accuracy = torchmetrics.Accuracy()
+        self.f1 = torchmetrics.classification.MulticlassF1Score(num_classes=num_classes)
         self.accuracy_score = 0.0
+        self.f1_score = 0.0
         
         if self_supervised_ckpt is not None:
             self.self_supervised,input_dim = return_self_supervised_model_sentinel2(self_supervised_ckpt,**kwargs)
@@ -89,7 +91,11 @@ class LSTM(pl.LightningModule):
                 x = run_time_series_with_mlp(self.self_supervised,x)
         y_pred = self.lstm(x)
         loss = self.loss(y_pred,y-1)
-        self.log_dict({'training_loss':loss},prog_bar=True)
+        acc = self.accuracy(y_pred,y-1)
+        f1 = self.f1(y_pred,y-1)
+        self.log_dict({'training_loss':loss,
+                      'training_acc':acc,
+                      'training_f1':f1},prog_bar=True)
         return loss
 
     def validation_step(self,batch,batch_idx):
@@ -100,20 +106,24 @@ class LSTM(pl.LightningModule):
         y_pred = self.lstm(x)
         loss = self.loss(y_pred,y-1)
         acc  = self.accuracy(y_pred,y-1)
-        return {'val_loss':loss,'val_acc':acc}
+        f1 = self.f1(y_pred,y-1)
+        return {'val_loss':loss,'val_acc':acc,'val_f1':f1}
 
     def validation_epoch_end(self,outputs):
         loss = []
         acc = []
+        f1_score = []
         for output in outputs:
             loss.append(output['val_loss'])
             acc.append(output['val_acc'])
+            f1_score.append(output['val_f1'])
         self.accuracy_score = torch.mean(torch.Tensor(acc))
         loss = torch.mean(torch.Tensor(loss))
-        self.log_dict({"val_loss":loss,"val_acc":self.accuracy_score},prog_bar=True)
+        self.f1_score = torch.mean(torch.Tensor(f1_score))
+        self.log_dict({"val_loss":loss,"val_acc":self.accuracy_score,'val_f1':self.f1_score},prog_bar=True)
 
     def configure_optimizers(self):
-        return self.optim(self.lstm.parameters(),lr=self.lr)
+        return self.optim(self.lstm.parameters(),lr=self.lr,weight_decay=1e-5)
 
 def train_lstm(trial,ckpt_path=None):
     lr = trial.suggest_float("lr",1e-5,1e-3,log=True)

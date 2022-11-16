@@ -20,6 +20,8 @@ sys.path.append("../../planet_sentinel_multi_modality")
 from datasets import sentinel2_dataloader as s2_loader
 from models.return_self_supervised_model import return_self_supervised_model_sentinel2,run_time_series_with_mlp
 
+
+
 class Transformer(pl.LightningModule):
     def __init__(
             self,
@@ -51,12 +53,15 @@ class Transformer(pl.LightningModule):
                     n_head=n_head,
                     n_layers=n_layers,
                     d_inner=2*d_model,
-                    dropout=dropout)
+                    dropout=dropout,
+                    max_len=150)
         self.loss = loss
         self.optim = optimizer
         self.lr = lr
         self.accuracy = torchmetrics.Accuracy()
-        self.accuracy_score = 0.0
+        self.f1 = torchmetrics.classification.MulticlassF1Score(num_classes=num_classes)
+        self.accuracy_score = 0
+        self.f1_score = 0.0
 
     @staticmethod
     def add_model_specific_args(parent_parser):
@@ -79,7 +84,11 @@ class Transformer(pl.LightningModule):
                 x = run_time_series_with_mlp(self.self_supervised,x)
         y_pred = self.transformer(x)
         loss = self.loss(y_pred,y-1)
-        self.log_dict({'training_loss':loss},prog_bar=True)
+        acc = self.accuracy(y_pred,y-1)
+        f1 = self.f1(y_pred,y-1)
+        self.log_dict({'training_loss':loss,
+                      'training_acc':acc,
+                      'training_f1':f1},prog_bar=True)
         return loss
 
     def validation_step(self,batch,batch_idx):
@@ -90,20 +99,24 @@ class Transformer(pl.LightningModule):
         y_pred = self.transformer(x)
         loss = self.loss(y_pred,y-1)
         acc  = self.accuracy(y_pred,y-1)
-        return {'val_loss':loss,'val_acc':acc}
+        f1 = self.f1(y_pred,y-1)
+        return {'val_loss':loss,'val_acc':acc,'val_f1':f1}
 
     def validation_epoch_end(self,outputs):
         loss = []
         acc = []
+        f1_score = []
         for output in outputs:
             loss.append(output['val_loss'])
             acc.append(output['val_acc'])
+            f1_score.append(output['val_f1'])
         self.accuracy_score = torch.mean(torch.Tensor(acc))
         loss = torch.mean(torch.Tensor(loss))
-        self.log_dict({"val_loss":loss,"val_acc":self.accuracy_score},prog_bar=True)
+        self.f1_score = torch.mean(torch.Tensor(f1_score))
+        self.log_dict({"val_loss":loss,"val_acc":self.accuracy_score,'val_f1':self.f1_score},prog_bar=True)
 
     def configure_optimizers(self):
-        return self.optim(self.parameters(),lr=self.lr)
+        return self.optim(self.parameters(),lr=self.lr,weight_decay=1e-5)
 
 def train_transformer(trial,ckpt_path=None):
     lr = trial.suggest_float("lr",1e-5,1e-3,log=True)

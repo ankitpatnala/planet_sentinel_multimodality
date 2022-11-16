@@ -71,8 +71,8 @@ if __name__ == "__main__":
     sentinel_std = 0
     planet_mean = 0
     planet_std = 0
-    pretraining_time_dataset = PretrainingTimeDataset("../utils/h5_folder/pretraining_time.h5")
-    pretraining_data_loader = pretrain_time_dataloader(pretraining_time_dataset,3000,8,True,False)
+    pretraining_time_dataset = PretrainingTimeDataset2("../utils/h5_folder/pretraining_time2.h5")
+    pretraining_data_loader = pretrain_time_dataloader(pretraining_time_dataset,150000,8,True,False,True)
 
     for idx,data in enumerate(pretraining_data_loader):
         sentinel_data,planet_data = data
@@ -85,7 +85,7 @@ if __name__ == "__main__":
                        'planet_mean' : planet_mean,
                        'sentinel_var' : sentinel_var,
                        'planet_var' : planet_var}
-    with open("mean_var_list.pkl",'wb') as pickle_writer:
+    with open("mean_var_list2.pkl",'wb') as pickle_writer:
         pickle.dump(mean_var_values,pickle_writer)
 
 

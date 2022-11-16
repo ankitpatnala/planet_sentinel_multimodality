@@ -17,22 +17,18 @@ from models.lstm import HyperParameterCallback
 
 def objective(trial,self_supervised_model,args):
 
-    pretraining_dataset = PretrainingDataset("../../planet_sentinel_multimodality/utils/h5_folder/pretraining_point.h5")
+    pretraining_dataset = PretrainingDataset("../../planet_sentinel_multimodality/utils/h5_folder/pretraining_point2.h5")
     pretraining_dataloader = pretrain_dataloader(pretraining_dataset,2048,32,True,True,True)
     pl.trainer.seed_everything(32)
     wandb_logger = WandbLogger(project="planet_sentinel_multimodality_self_supervised_point",
                                config=args.__dict__)
-    #self_supervised_callback = SelfSupervisedCallback(baseline_hyper_parameter_file=args.baseline_hyper_param_file,pretrain_type=args.pretrain_type)
     args = args.__dict__
-    print(args)
     self_supervised_callback = SelfSupervisedCallback(**args)
     trial_args = self_supervised_model.return_hyper_parameter_args()
-
     copied_args = copy.deepcopy(args)
-
     for arg in trial_args:
         if arg == 'lr':
-            copied_args[arg] = trial.suggest_float(arg,args[arg][0],args[arg][1])
+            copied_args[arg] = trial.suggest_float(arg,args[arg][0],args[arg][1],log=True)
         if arg == 'dropout':
             copied_args[arg] = trial.suggest_uniform(arg,args[arg][1],args[arg][1])
         if not (arg == 'lr' or arg == 'dropout'):
@@ -42,14 +38,18 @@ def objective(trial,self_supervised_model,args):
                     36,
                     12,
                     **copied_args)
+
+    wandb_logger.watch(lightning_model)
         
     trainer = pl.Trainer(
             accelerator='gpu',
             devices=1,
-            max_epochs=1000,
+            max_epochs=100,
             logger=wandb_logger,
             callbacks=[self_supervised_callback])
-    trainer.fit(lightning_model,pretraining_dataloader)
+    trainer.fit(
+            lightning_model,
+            pretraining_dataloader)
 
     wandb.finish()
     return lightning_model.downstream_accuracy
@@ -65,7 +65,7 @@ if __name__ == "__main__":
     
     self_supervised_model.add_model_specific_args(parser)
     parser.add_argument("--hyperparameter_tuning",action='store_true')
-    
+    parser.add_argument("--hyperparameter_resume_file",type=str,default=None)
     args = parser.parse_args()
 
     args.loss = SELF_SUPERVISED_LOSS_FUNC[args.loss]
@@ -75,13 +75,17 @@ if __name__ == "__main__":
     else:
         n_trials = 1
 
-    study = optuna.create_study(direction='maximize')
+    if args.hyperparameter_resume_file is None:
+        study = optuna.create_study(direction='maximize')
+    else :
+        study = joblib.load(model_args.hyperparameter_resume_file)
+    
     study.optimize(lambda trial: objective(
                         trial,
                         self_supervised_model,
                         args),
                         n_trials=n_trials,
-                        callbacks=[HyperParameterCallback(f"../hyp_point_self_supervised_{args.pretrain_type}.pkl")])
+                        callbacks=[HyperParameterCallback(f"../hyp_point_self_supervised_{args.pretrain_type}_{args.baseline_model_type}_scarf_{args.scarf}.pkl")])
   
   
   

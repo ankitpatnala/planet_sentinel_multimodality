@@ -17,9 +17,9 @@ MODELS = {'lstm':LSTM,
           'inception':InceptionTime,
           'transformer':Transformer}
 def objective(trial,model,model_args,args):
-    train_dataset = s2_loader.Sentinel2Dataset("../utils/h5_folder/train_sentinel_ts.hdf5")
+    train_dataset = s2_loader.Sentinel2Dataset("../utils/h5_folder/train_sentinel_ts.hdf5",is_normalize=model_args.is_normalize)
     train_dataloader = s2_loader.sentinel2_dataloader(train_dataset,256,8,True,True,True)
-    val_dataset = s2_loader.Sentinel2Dataset("../utils/h5_folder/val_sentinel_ts.hdf5")
+    val_dataset = s2_loader.Sentinel2Dataset("../utils/h5_folder/val_sentinel_ts.hdf5",is_normalize=model_args.is_normalize)
     val_dataloader = s2_loader.sentinel2_dataloader(val_dataset,256,8,True,False,True)
 
     pl.trainer.seed_everything(32)
@@ -48,7 +48,7 @@ def objective(trial,model,model_args,args):
 
     trainer.fit(lightning_model,train_dataloader,val_dataloader)
     wandb.finish()
-    return lightning_model.accuracy_score
+    return lightning_model.accuracy_score,lightning_model.f1_score
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -63,6 +63,7 @@ if __name__ == "__main__":
     parser.add_argument("--self_supervised_ckpt",type=str,default=None)
     parser.add_argument("--backbone_type",type=str,default="resmlp")
     parser.add_argument("--hyperparameter_resume_file",type=str,default=None)
+    parser.add_argument("--is_normalize",action='store_true')
     model_args,_ = parser.parse_known_args()
     pl.Trainer.add_argparse_args(parser)
     args = pl.Trainer.parse_argparser(parser.parse_args(""))
@@ -74,16 +75,17 @@ if __name__ == "__main__":
         n_trials = 1
 
     if model_args.hyperparameter_resume_file is None:
-        study = optuna.create_study(direction='maximize')
+        study = optuna.create_study(directions=['maximize','maximize'])
     else :
         study = joblib.load(model_args.hyperparameter_resume_file)
+
     study.optimize(lambda trial: objective(
                         trial,
                         model,
                         model_args,
                         args),
                         n_trials=n_trials,
-                        callbacks=[HyperParameterCallback("../hyp_tune_inception.pkl")])
+                        callbacks=[HyperParameterCallback(f"../hyp_tune_{temp_args.method}.pkl")])
 
 
 

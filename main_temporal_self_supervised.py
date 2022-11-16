@@ -15,12 +15,11 @@ import copy
 from models.lstm import HyperParameterCallback
 
 def objective(trial,self_supervised_model,args):
-    pretraining_time_dataset = PretrainingTimeDataset("../utils/h5_folder/pretraining_time.h5")
+    pretraining_time_dataset = PretrainingTimeDataset("../utils/h5_folder/pretraining_time2.h5")
     pretraining_time_dataloader = pretrain_time_dataloader(pretraining_time_dataset,256,16,True,True,True)
 
     pl.trainer.seed_everything(32)
-    wandb_logger = WandbLogger(project="planet_sentinel_multimodality_self_supervised_temporal",
-                               config=args.__dict__)
+
     trial_args = self_supervised_model.return_hyper_parameter_args()
     args = args.__dict__
     self_supervised_callback = SelfSupervisedCallback(**args)
@@ -28,7 +27,7 @@ def objective(trial,self_supervised_model,args):
 
     for arg in trial_args:
         if arg == 'lr':
-            copied_args[arg] = trial.suggest_float(arg,args[arg][0],args[arg][1])
+            copied_args[arg] = trial.suggest_float(arg,args[arg][0],args[arg][1],log=True)
         if arg == 'dropout':
             copied_args[arg] = trial.suggest_uniform(arg,args[arg][1],args[arg][1])
         if not (arg == 'lr' or arg == 'dropout'):
@@ -38,13 +37,16 @@ def objective(trial,self_supervised_model,args):
                     36,
                     12,
                     **copied_args)
-        
+    wandb_logger = WandbLogger(project="planet_sentinel_multimodality_self_supervised_temporal",
+                               config=copied_args)
+    wandb_logger.watch(lightning_model)
     trainer = pl.Trainer(
             accelerator='gpu',
             devices=1,
-            max_epochs=1000,
+            max_epochs=100,
             logger=wandb_logger,
-            callbacks=[self_supervised_callback])
+            callbacks=[self_supervised_callback]
+            )
     trainer.fit(lightning_model,pretraining_time_dataloader)
 
     wandb.finish()
@@ -53,16 +55,17 @@ def objective(trial,self_supervised_model,args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     self_supervised_model = SELF_SUPERVISED_TYPE['time']
+    print(self_supervised_model)
     parser.add_argument("--loss",type=str,default="simclr")
     parser.add_argument("--temperature",type=float,default=0.07)
     parser.add_argument("--baseline_hyper_param_file",type=str,default=None)
     parser.add_argument("--baseline_model_type",type=str,default='lstm')
     parser.add_argument("--pretrain_type",type=str,default='temporal_transformer')
     parser.add_argument("--hyperparameter_tuning",action='store_true')
+    parser.add_argument("--hyperparameter_resume_file",type=str,default=None)
     self_supervised_model.add_model_specific_args(parser)
-    
-    args = parser.parse_args()
 
+    args = parser.parse_args()
     args.loss = SELF_SUPERVISED_LOSS_FUNC[args.loss]
 
     if args.hyperparameter_tuning:
@@ -70,10 +73,14 @@ if __name__ == "__main__":
     else:
         n_trials = 1
 
-    study = optuna.create_study(direction='maximize')
+    if args.hyperparameter_resume_file is None:
+        study = optuna.create_study(direction='maximize')
+    else :
+        study = joblib.load(model_args.hyperparameter_resume_file)
+    
     study.optimize(lambda trial: objective(
                         trial,
                         self_supervised_model,
                         args),
                         n_trials=n_trials,
-                        callbacks=[HyperParameterCallback("../hyp_temp_self_supervised.pkl")])
+                        callbacks=[HyperParameterCallback("../hyp_temp_self_supervised_{args.baseline_model_type}.pkl")])

@@ -5,18 +5,34 @@ import numpy as np
 
 import h5py
 import random
-
+import pickle
 
 class PretrainingDataset(Dataset):
-    def __init__(self,file_path):
+    def __init__(self,file_path,is_normalize=True):
         self.dataset = h5py.File(file_path)
-
+        self.is_normalize = is_normalize
+        with open("./mean_var_list.pkl","rb") as pickle_reader:
+            data = pickle.load(pickle_reader)
+            self.sentinel_mean = data['sentinel_mean']
+            self.sentinel_var = data['sentinel_var']
+            self.planet_mean = data['planet_mean']
+            self.planet_var = data['planet_var'] 
+    
     def __len__(self):
         return len(self.dataset['planet_data'])
 
     def __getitem__(self,idx):
-        return ((self.dataset['sentinel2_data'][idx]/10000).astype(np.float32),
-                (self.dataset['planet_data'][idx]/10000).flatten().astype(np.float32))
+        if not self.is_normalize:
+            return ((self.dataset['sentinel2_data'][idx]/10000).astype(np.float32),
+                    (self.dataset['planet_data'][idx]/10000).flatten().astype(np.float32))
+        else :
+            normalize_sentinel = (
+                    (torch.Tensor((self.dataset['sentinel2_data'][idx]/10000).astype(np.float32))-self.sentinel_mean)/self.sentinel_var)
+            normalize_planet = ((
+                    (torch.Tensor(self.dataset['planet_data'][idx]/10000).permute(0,2,3,1)-self.planet_mean)/self.planet_var).permute(
+                            0,3,1,2).flatten())
+
+            return normalize_sentinel,normalize_planet
 
 def seed_worker(worker_id):
     worker_seed = torch.initial_seed() % 2**32
