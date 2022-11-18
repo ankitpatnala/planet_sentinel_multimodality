@@ -12,7 +12,7 @@ def return_self_supervised_model_sentinel2(ckpt_path,pretrain_type='temporal_tra
     if config is None and hyper_param_file is not None:
         config = {}
         trial = joblib.load(hyper_param_file)
-        best_param = trial.best_params
+        best_param = trial.best_params 
         for param in best_param.keys():
             config[param] = best_param[param] 
     if pretrain_type == "mlp":
@@ -30,15 +30,15 @@ def return_self_supervised_model_sentinel2(ckpt_path,pretrain_type='temporal_tra
     if pretrain_type == 'temporal_transformer':
         sentinel_mlp = TransformerEncoder(
                 12,
-                config['d_model'] if config is not None else 128,
+                config['d_model'] if config is not None else 64,
                 config['n_head'] if config is not None else 4,
                 config['num_layer'] if config is not None else 4,
-                config['mlp_dim'] if config is not None else 256,
+                config['mlp_dim'] if config is not None else 128,
                 config['dropout'] if config is not None else 0.0,
                 config['projector_layer'] if config is not None else 2)
         backbone_model_name = 'sentinel_transformer_encoder'
         #emb_dim = config['mlp_dim'] if config is not None else 256
-        emb_dim = config['d_model'] if config is not None else 128
+        emb_dim = config['d_model'] if config is not None else 64
     ckpt = torch.load(ckpt_path)
     new_ckpt = OrderedDict()
     for key in ckpt['state_dict'].keys():

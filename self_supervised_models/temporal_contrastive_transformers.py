@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import torch.nn.functional as F
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 import numpy as np
@@ -68,9 +69,25 @@ class TemporalContrastiveLearning(pl.LightningModule):
         y1_embedding,y1_projector = self.sentinel_transformer_encoder(x1)
         y2_embedding,y2_projector = self.planet_transformer_encoder(x2)
         loss = self.loss(y1_projector,y2_projector,self.temperature)
+        y1_season = self.sentinel_transformer_encoder.return_chunk_embeddings(x1)
+        y2_season = self.planet_transformer_encoder.return_chunk_embeddings(x2)
+        seasonal_loss_y1 = (F.cross_entropy(y1_season[0],torch.ones(x1.shape[0],device=x1.device,dtype=torch.int64)*0) +
+                           F.cross_entropy(y1_season[1],torch.ones(x1.shape[0],device=x1.device,dtype=torch.int64)*1) +
+                           F.cross_entropy(y1_season[2],torch.ones(x1.shape[0],device=x1.device,dtype=torch.int64)*2) +
+                           F.cross_entropy(y1_season[3],torch.ones(x1.shape[0],device=x1.device,dtype=torch.int64)*3))
+
+        seasonal_loss_y2 = (F.cross_entropy(y2_season[0],torch.ones(x2.shape[0],device=x1.device,dtype=torch.int64)*0) +
+                           F.cross_entropy(y2_season[1],torch.ones(x2.shape[0],device=x1.device,dtype=torch.int64)*1) +
+                           F.cross_entropy(y2_season[2],torch.ones(x2.shape[0],device=x1.device,dtype=torch.int64)*2) +
+                           F.cross_entropy(y2_season[3],torch.ones(x2.shape[0],device=x1.device,dtype=torch.int64)*3))
+
+        seasonal_loss = seasonal_loss_y1 + seasonal_loss_y2
         #loss = self.loss(y1_projector,y2_projector)
-        self.log_dict({'simclr_loss':loss},prog_bar=True)
-        return loss
+        self.log_dict({'simclr_loss':loss,
+                        'seasonal_loss':seasonal_loss,
+                        'total_loss': loss+seasonal_loss},prog_bar=True)
+
+        return loss+seasonal_loss
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(),lr=self.lr)

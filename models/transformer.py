@@ -38,6 +38,8 @@ class Transformer(pl.LightningModule):
             **kwargs):
         super(Transformer,self).__init__()
         self.save_hyperparameters()
+        print(d_model,n_head,n_layers)
+        print(kwargs)
         if self_supervised_ckpt is not None:
             self.self_supervised,input_dim = return_self_supervised_model_sentinel2(self_supervised_ckpt,**kwargs)
             for param in self.self_supervised.parameters():

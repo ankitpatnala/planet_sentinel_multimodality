@@ -55,6 +55,5 @@ python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main_temp
   	--mlp_dim 128 \
   	--lr 1e-5  1e-5 \
   	--baseline_hyper_param_file ../hyp_tune_transformer.pkl \
-	--is_mixup  \
-  	--projector_layer 0 
+  	--projector_layer 2 
 
