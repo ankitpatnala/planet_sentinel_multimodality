@@ -40,15 +40,15 @@ python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main.py \
 #		--backbone_type resmlp \
 #		--self_supervised_ckpt planet_sentinel_multimodality_self_supervised_point/zhl45sgk/checkpoints/epoch=99-step=703200.ckpt
 
-#srun python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main.py \
+#python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main.py \
 #		--method inception \
 #		--hidden_dims 128 256 512\
 #		--num_layers 2 4 6 8\
 #		--lr 1e-5 1e-3    \
 #		--kernel_size 40 80 120 160 \
 #		--hyperparameter_tuning \
-#		#--backbone_type resmlp \
-#		#--self_supervised_ckpt planet_sentinel_multimodality_self_supervised/3rig1hqt/checkpoints/epoch=999-step=704000.ckpt
+		#--backbone_type resmlp \
+		#--self_supervised_ckpt planet_sentinel_multimodality_self_supervised/3rig1hqt/checkpoints/epoch=999-step=704000.ckpt
 
 
 #python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main.py \

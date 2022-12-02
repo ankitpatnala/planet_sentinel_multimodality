@@ -32,7 +32,7 @@ def objective(trial,model,model_args,args):
         if arg == 'lr':
             copied_model_args[arg] = trial.suggest_float(arg,model_args[arg][0],model_args[arg][1])
         if arg == 'dropout':
-            copied_model_args[arg] = trial.suggest_uniform(arg,model_args[arg][1],model_args[arg][1])
+            copied_model_args[arg] = trial.suggest_uniform(arg,model_args[arg][0],model_args[arg][1])
         if not (arg == 'lr' or arg == 'dropout'):
             copied_model_args[arg] = trial.suggest_categorical(arg,model_args[arg])
 
@@ -85,7 +85,7 @@ if __name__ == "__main__":
                         model_args,
                         args),
                         n_trials=n_trials,
-                        callbacks=[HyperParameterCallback(f"../hyp_tune_{temp_args.method}.pkl")])
+                        callbacks=[HyperParameterCallback(f"../hyp_tune_{temp_args.method}2.pkl")])
 
 
 

@@ -33,10 +33,23 @@ if __name__ == "__main__":
     parser.add_argument("--baseline_hyper_param_file",type=str,default=None)
     parser.add_argument("--is_normalize",action='store_true')
     parser.add_argument("--trial_number",type=int,default=-1)
+    parser.add_argument("--is_seasonal",action='store_true')
+    parser.add_argument("--self_supervised_loss",type=str,default='simclr')
+    parser.add_argument("--temperature",type=float,default=1.0)
+    parser.add_argument("--scarf",type=int,default=60)
     args = parser.parse_args()
     pl.trainer.seed_everything(32)
-    wandb_logger = WandbLogger(project=args.project,
-                             config=args.__dict__)
+    version = f"{args.trial_number}_{args.method}_{args.pretrain_type}_{args.self_supervised_loss}"
+    if args.self_supervised_loss == 'simclr':
+        version += f"_{args.temperature}"
+    if "temporal_transformer" not in args.pretrain_type:
+        version += f"_{args.scarf}"
+    if "seasonal" in args.self_supervised_ckpt:
+        version += "_sesaonal"
+    
+    wandb_logger = WandbLogger(project=f"{args.project}_{args.trial_number}",
+                             config=args.__dict__,
+                             version=version)
     trainer = pl.Trainer.from_argparse_args(
             args,
             accelerator='gpu',

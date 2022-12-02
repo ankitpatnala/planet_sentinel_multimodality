@@ -40,11 +40,26 @@ export MASTER_ADDR=$master_addr
 
 python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main_self_supervised.py \
 		--baseline_model_type transformer \
-		--pretrain_type mlp \
-		--temperature 1.0 \
-		--baseline_hyper_param_file ../hyp_tune_transformer.pkl \
+		--pretrain_type $1 \
+		--temperature $2 \
+		--loss $4 \
+		--baseline_hyper_param_file ../hyp_tune_transformer2.pkl \
 		--num_layers 4 \
 		--hidden_dim 256 \
-		--lr 1e-5 1e-3  \
-		--dropout 0.0 0.6 \
-		--scarf 60
+		--lr 1e-3 1e-3  \
+		--dropout 0.6 0.6 \
+		--scarf $3
+
+
+# mlp 1.0 simclr 60
+# mlp 1.0 barlow_twins 60
+# resmlp 1.0 simclr 60
+# resmlp 1.0 barlow_twins 60
+
+# mlp 0.7 simclr 60
+# mlp 0.7 barlow_twins 60
+# resmlp 0.7 simclr 60
+# resmlp 0.7 barlow_twins 60
+
+#mlp 0.07 simclr 60
+#resmlp o.07 simclr 60 

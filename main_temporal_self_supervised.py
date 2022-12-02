@@ -8,6 +8,7 @@ from datasets.pretrain_dataloader import PretrainingDataset,pretrain_dataloader
 from datasets.pretrain_time_dataloader import PretrainingTimeDataset,pretrain_time_dataloader
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.callbacks import ModelCheckpoint
 import optuna
 import wandb
 import copy
@@ -40,12 +41,19 @@ def objective(trial,self_supervised_model,args):
     wandb_logger = WandbLogger(project="planet_sentinel_multimodality_self_supervised_temporal",
                                config=copied_args)
     wandb_logger.watch(lightning_model)
+    dir_path_name = f"{args['pretrain_type']}"
+    if args['is_mixup'] :
+        dir_path_name+="_mixup"
+    if args['is_seasonal']:
+        dir_path_name+="_seasonal"
+
+    checkpoint_callback = ModelCheckpoint(dirpath = f"./{dir_path_name}/{args['loss_name']}/{args['temperature']}/",every_n_epochs=5,save_top_k=-1)
     trainer = pl.Trainer(
             accelerator='gpu',
             devices=1,
             max_epochs=100,
             logger=wandb_logger,
-            callbacks=[self_supervised_callback]
+            callbacks=[checkpoint_callback]
             )
     trainer.fit(lightning_model,pretraining_time_dataloader)
 
@@ -55,7 +63,6 @@ def objective(trial,self_supervised_model,args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     self_supervised_model = SELF_SUPERVISED_TYPE['time']
-    print(self_supervised_model)
     parser.add_argument("--loss",type=str,default="simclr")
     parser.add_argument("--temperature",type=float,default=0.07)
     parser.add_argument("--baseline_hyper_param_file",type=str,default=None)
@@ -66,6 +73,7 @@ if __name__ == "__main__":
     self_supervised_model.add_model_specific_args(parser)
 
     args = parser.parse_args()
+    args.loss_name = args.loss
     args.loss = SELF_SUPERVISED_LOSS_FUNC[args.loss]
 
     if args.hyperparameter_tuning:

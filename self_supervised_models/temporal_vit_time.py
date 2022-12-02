@@ -26,15 +26,16 @@ def chunk_4_seasons(time_list):
     
 
 class TransformerEncoder(nn.Module):
-    def __init__(self,num_inputs,d_model,n_head,num_layer,mlp_dim,dropout,projector_layer,mode_type='sentinel',activation=nn.GELU(),**kwargs):
+    def __init__(self,num_inputs,d_model,n_head,num_layer,mlp_dim,dropout,projector_layer,mode_type='sentinel',activation=nn.GELU(),is_seasonal=False,**kwargs):
         super(TransformerEncoder,self).__init__()
         self.num_days =  len(sentinel_days) if mode_type == "sentinel" else len(planet_days) 
         self.encoder_layer = EncoderTransformer(input_size=self.num_days,in_chans=num_inputs,num_classes=mlp_dim,embed_dim=d_model,depth=num_layer,num_heads=n_head,global_pool="avg")
         self.projector = (nn.Linear(mlp_dim,mlp_dim)
                            if projector_layer == 0 
                            else MLP(mlp_dim,projector_layer,mlp_dim))
-        self.season_classifier = nn.Linear(d_model,4)
-        self.chunk_4_seasons = chunk_4_seasons(sentinel_days if mode_type == "sentinel" else planet_days)
+        if is_seasonal:
+            self.season_classifier = nn.Linear(d_model,4)
+            self.chunk_4_seasons = chunk_4_seasons(sentinel_days if mode_type == "sentinel" else planet_days)
 
     def forward(self,x):
         x = self.encoder_layer(x)

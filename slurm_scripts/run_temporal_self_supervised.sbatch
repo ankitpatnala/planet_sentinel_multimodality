@@ -47,13 +47,52 @@ export CUDA_VISIBLE_DEVICES="0"
 python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main_temporal_self_supervised.py \
   	--baseline_model_type transformer \
   	--pretrain_type temporal_transformer \
-	--loss barlow_twins \
-  	--temperature 0.07 \
+	--loss $1 \
+  	--temperature $2 \
   	--d_model 64 \
   	--n_head 4 \
   	--num_layer 4  \
   	--mlp_dim 128 \
-  	--lr 1e-5  1e-5 \
+  	--lr 1e-3  1e-3 \
+	--is_seasonal \
   	--baseline_hyper_param_file ../hyp_tune_transformer.pkl \
-  	--projector_layer 2 
+  	--projector_layer 2  
 
+
+
+#-------------------------------
+#1e-5
+# simclr 1.0
+# simclr 1.0 seasonal
+# barlow_twins 1.0 
+# barlow_twins 1.0 seasonal 
+# simclr 0.7
+# simclr 0.7 seasonal
+# barlow_twins 0.7
+# barlow_twins 0.7 seasonal
+
+
+# simclr 0.07
+# simclr 0.07 seasonal
+# barlow_twins 0.07
+# barlow_twins 0.07 seasonal
+
+
+
+#------------------------------
+
+#----------------------------
+#1e-3
+#barlow_twins 1.0
+
+#simclr 0.04 
+#simclr 0.07
+#simclr 0.7
+#simclr 1.0
+
+#barlow_twins 1.0 seasonal
+
+#simclr 0.04 seasonal
+#simclr 0.07 seasonal
+#simclr 0.7 seasonal
+#simclr 1.0 seasonal

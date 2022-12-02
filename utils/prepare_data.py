@@ -98,7 +98,7 @@ def get_sentinel_time_series(sentinel_array,idx_crop_list,output_file_name="sent
     file_path = os.path.join(h5_folder,file_name)
     h5_file = h5py.File(file_path,'w')
     h5_file.create_dataset('time_series',data=sentinel_array,shape=sentinel_array.shape)
-    h5_file.create_dataset('crop_labels',shape=(sentinel_array.shape[0],1),data=crop_labels)
+    h5_file.create_dataset('crop_labels',shape=crop_labels.shape,data=crop_labels)
     h5_file.close()
 
 def get_planet_time_series(planet_folder_name,idx_crop_list,output_file_name='planet_ts.hdf5',mode='train',neighbor_count=1):
@@ -122,8 +122,10 @@ def get_planet_time_series(planet_folder_name,idx_crop_list,output_file_name='pl
             np.concatenate(height_indices_list,axis=-1),
             3,
             axis=0).flatten()
-    planet_array = planet_array[:,width_indices,height_indices].reshape(
-            -1,1,c,2*neighbor_count+1,2*neighbor_count+1)
+    #planet_array = planet_array[:,width_indices,height_indices].reshape(
+    #        -1,1,c,2*neighbor_count+1,2*neighbor_count+1)
+    planet_array = np.expand_dims(planet_array[:,width_indices,height_indices],0)
+    print(planet_array.shape)
     return planet_array
 
 def read_boundries_from_pickle(pickle_file):
@@ -284,10 +286,11 @@ class PlanetTimeSeries(TimeseriesDataset):
                                     planet_folder[1],
                                     (width_index,height_index,crop_labels),
                                 mode='train',
-                                neighbor_count=self.neighbor_count)],axis=1)
+                                neighbor_count=self.neighbor_count)],axis=0)
+        print(time_series_array.shape)
         h5_file = h5py.File(os.path.join("./h5_folder",output_file_name),mode='w')
         h5_file.create_dataset('time_series',data=time_series_array,shape=time_series_array.shape)
-        h5_file.create_dataset('crop_labels',shape=(time_series_array.shape[0],1),data=crop_labels)
+        h5_file.create_dataset('crop_labels',shape=crop_labels.shape,data=crop_labels)
         h5_file.close()
     
     def return_val_data(self,output_file_name="val_planet_ts.hdf5"):
@@ -314,10 +317,10 @@ class PlanetTimeSeries(TimeseriesDataset):
                                     planet_folder[1],
                                     (width_index,height_index,crop_labels),
                                 mode='val',
-                                neighbor_count=self.neighbor_count)],axis=1)
+                                neighbor_count=self.neighbor_count)],axis=0)
         h5_file = h5py.File(os.path.join("./h5_folder",output_file_name),mode='w')
         h5_file.create_dataset('time_series',data=time_series_array,shape=time_series_array.shape)
-        h5_file.create_dataset('crop_labels',shape=(time_series_array.shape[0],1),data=crop_labels)
+        h5_file.create_dataset('crop_labels',shape=(crop_labels.shape),data=crop_labels)
         h5_file.close()
 
 def get_day_idx_of_sentinel2(sentinel2_time_stamp):
@@ -364,8 +367,8 @@ def get_pretraining_data(time_idx_tuples,indices,num_points,planet_folder,is_les
             planet_data.extend(get_planet_time_series(
                 planet_folder[time_index][1],
                 (indices[0][indices_list[idx]],indices[1][indices_list[idx]]),
-                neighbor_count=1))
-    return np.array(sentinel_2_data),np.array(planet_data)
+                neighbor_count=1).reshape(1,4,9,-1).transpose(3,0,1,2))
+    return np.array(sentinel_2_data),np.concatenate(planet_data,axis=0)
 
 
 
@@ -384,14 +387,14 @@ def get_time_wise_pretraining_data(indices,num_points,planet_folder):
                     (indices[0][selected_indices],
                      indices[1][selected_indices]),
                     neighbor_count=1)
+            print(planet_data.shape)
         else:
             planet_data = np.concatenate([planet_data,
                 (get_planet_time_series(
                 a_folder[1],
                 (indices[0][selected_indices],
                 indices[1][selected_indices]),
-                neighbor_count=1))],axis=1)
-        print(folder_idx)
+                neighbor_count=1))],axis=0)
     return np.transpose(sentinel_2_data,axes=[2,0,1]),planet_data
 
 def planet_sentinel2_pairing(planet_folder,sentinel2_time_stamp,indices,num_points):
@@ -422,6 +425,7 @@ class PretrainingDataset:
     def return_pretaining_data(self,output_file_name="pretraining_point2.h5"):
         if self.pretraining_type == "point":
             sentinel2_data, planet_data = planet_sentinel2_pairing(self.planet_folder,self.sentinel2_time_stamp,self.indices,self.num_points)
+            print(sentinel2_data.shape,planet_data.shape)
             h5_file = h5py.File(os.path.join("./h5_folder",output_file_name),mode="w")
             h5_file.create_dataset("planet_data",shape=planet_data.shape,data=planet_data)
             h5_file.create_dataset("sentinel2_data",shape= sentinel2_data.shape,data=sentinel2_data)
@@ -468,8 +472,9 @@ if __name__ == "__main__" :
     #                            neighbor_count=1)
     #planet_time_series_data.return_train_data()
     #planet_time_series_data.return_val_data()
-    #pretraining_dataset = PretrainingDataset("./geojson/pretaining.geojson",pretraining_type='point',planet_folder=planet_folder,sentinel2_time_stamp=time_stamp,num_points=100000)
-   # pretraining_dataset = PretrainingDataset("./geojson/pretaining.geojson",pretraining_type='time',planet_folder=planet_folder,sentinel2_time_stamp=time_stamp,num_points=150000)
-    #pretraining_dataset.return_pretaining_data()
-    plot_all(planet_folder)
+    pretraining_dataset = PretrainingDataset("./geojson/pretaining.geojson",pretraining_type='point',planet_folder=planet_folder,sentinel2_time_stamp=time_stamp,num_points=100000)
+    #pretraining_dataset2 = PretrainingDataset("./geojson/pretaining.geojson",pretraining_type='time',planet_folder=planet_folder,sentinel2_time_stamp=time_stamp,num_points=150000)
+    pretraining_dataset.return_pretaining_data()
+    #pretraining_dataset2.return_pretaining_data()
+    #plot_all(planet_folder)
 

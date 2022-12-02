@@ -9,6 +9,7 @@ from datasets.pretrain_time_dataloader import PretrainingTimeDataset,pretrain_ti
 
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.callbacks import ModelCheckpoint
 import optuna
 import wandb
 import copy
@@ -40,13 +41,14 @@ def objective(trial,self_supervised_model,args):
                     **copied_args)
 
     wandb_logger.watch(lightning_model)
+    checkpoint_callback = ModelCheckpoint(dirpath = f"./{args['pretrain_type']}/{args['loss_name']}/{args['temperature']}/{args['scarf']}/",every_n_epochs=5,save_top_k=-1)
         
     trainer = pl.Trainer(
             accelerator='gpu',
             devices=1,
             max_epochs=100,
             logger=wandb_logger,
-            callbacks=[self_supervised_callback])
+            callbacks=[checkpoint_callback])
     trainer.fit(
             lightning_model,
             pretraining_dataloader)
@@ -67,7 +69,7 @@ if __name__ == "__main__":
     parser.add_argument("--hyperparameter_tuning",action='store_true')
     parser.add_argument("--hyperparameter_resume_file",type=str,default=None)
     args = parser.parse_args()
-
+    args.loss_name = args.loss
     args.loss = SELF_SUPERVISED_LOSS_FUNC[args.loss]
   
     if args.hyperparameter_tuning:

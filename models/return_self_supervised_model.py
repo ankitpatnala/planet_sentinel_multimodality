@@ -35,7 +35,8 @@ def return_self_supervised_model_sentinel2(ckpt_path,pretrain_type='temporal_tra
                 config['num_layer'] if config is not None else 4,
                 config['mlp_dim'] if config is not None else 128,
                 config['dropout'] if config is not None else 0.0,
-                config['projector_layer'] if config is not None else 2)
+                config['projector_layer'] if config is not None else 2,
+                is_seasonal=kwargs['is_seasonal'])
         backbone_model_name = 'sentinel_transformer_encoder'
         #emb_dim = config['mlp_dim'] if config is not None else 256
         emb_dim = config['d_model'] if config is not None else 64

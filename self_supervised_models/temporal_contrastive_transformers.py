@@ -22,15 +22,16 @@ from callbacks.callbacks import SelfSupervisedCallback
 from self_supervised_models.temporal_vit_time import TransformerEncoder
 
 class TemporalContrastiveLearning(pl.LightningModule):
-    def __init__(self,planet_input_dims,sentinel_input_dims,d_model,n_head,num_layer,mlp_dim,dropout,loss,temperature,lr,is_mixup,projector_layer,**kwargs):
+    def __init__(self,planet_input_dims,sentinel_input_dims,d_model,n_head,num_layer,mlp_dim,dropout,loss,temperature,lr,is_mixup,projector_layer,is_seasonal,**kwargs):
         super(TemporalContrastiveLearning,self).__init__()
-        self.planet_transformer_encoder = TransformerEncoder(planet_input_dims,d_model,n_head,num_layer,mlp_dim,dropout,projector_layer,mode_type='planet')
-        self.sentinel_transformer_encoder = TransformerEncoder(sentinel_input_dims,d_model,n_head,num_layer,mlp_dim,dropout,projector_layer)
+        self.planet_transformer_encoder = TransformerEncoder(planet_input_dims,d_model,n_head,num_layer,mlp_dim,dropout,projector_layer,mode_type='planet',is_seasonal=is_seasonal)
+        self.sentinel_transformer_encoder = TransformerEncoder(sentinel_input_dims,d_model,n_head,num_layer,mlp_dim,dropout,projector_layer,is_seasonal=is_seasonal)
         self.loss = loss
         self.temperature = temperature
         self.lr = lr
         self.downstream_accuracy = 0
         self.is_mixup = is_mixup
+        self.is_seasonal = is_seasonal
         self.config = {'d_model':d_model,
                        'n_head':n_head,
                        'num_layer':num_layer,
@@ -48,6 +49,7 @@ class TemporalContrastiveLearning(pl.LightningModule):
         parser.add_argument("--lr",type=float,nargs="+",default=[1e-3,1e-3])
         parser.add_argument("--dropout",type=float,nargs="+",default=[0.0,0.0])
         parser.add_argument("--is_mixup",action='store_true')
+        parser.add_argument("--is_seasonal",action='store_true')
         parser.add_argument("--projector_layer",type=int,default=2)
         return parent_parser
 
@@ -66,23 +68,27 @@ class TemporalContrastiveLearning(pl.LightningModule):
             x2_mix = x2*random_num + x2_reverse*(1-random_num)
             x1 = torch.cat([x1,x1_reverse],dim=0)
             x2 = torch.cat([x2,x2_reverse],dim=0)
+
         y1_embedding,y1_projector = self.sentinel_transformer_encoder(x1)
         y2_embedding,y2_projector = self.planet_transformer_encoder(x2)
         loss = self.loss(y1_projector,y2_projector,self.temperature)
-        y1_season = self.sentinel_transformer_encoder.return_chunk_embeddings(x1)
-        y2_season = self.planet_transformer_encoder.return_chunk_embeddings(x2)
-        seasonal_loss_y1 = (F.cross_entropy(y1_season[0],torch.ones(x1.shape[0],device=x1.device,dtype=torch.int64)*0) +
-                           F.cross_entropy(y1_season[1],torch.ones(x1.shape[0],device=x1.device,dtype=torch.int64)*1) +
-                           F.cross_entropy(y1_season[2],torch.ones(x1.shape[0],device=x1.device,dtype=torch.int64)*2) +
-                           F.cross_entropy(y1_season[3],torch.ones(x1.shape[0],device=x1.device,dtype=torch.int64)*3))
+            
+        if self.is_seasonal:
+            y1_season = self.sentinel_transformer_encoder.return_chunk_embeddings(x1)
+            y2_season = self.planet_transformer_encoder.return_chunk_embeddings(x2)
+            seasonal_loss_y1 = (F.cross_entropy(y1_season[0],torch.ones(x1.shape[0],device=x1.device,dtype=torch.int64)*0) +
+                               F.cross_entropy(y1_season[1],torch.ones(x1.shape[0],device=x1.device,dtype=torch.int64)*1) +
+                               F.cross_entropy(y1_season[2],torch.ones(x1.shape[0],device=x1.device,dtype=torch.int64)*2) +
+                               F.cross_entropy(y1_season[3],torch.ones(x1.shape[0],device=x1.device,dtype=torch.int64)*3))
 
-        seasonal_loss_y2 = (F.cross_entropy(y2_season[0],torch.ones(x2.shape[0],device=x1.device,dtype=torch.int64)*0) +
-                           F.cross_entropy(y2_season[1],torch.ones(x2.shape[0],device=x1.device,dtype=torch.int64)*1) +
-                           F.cross_entropy(y2_season[2],torch.ones(x2.shape[0],device=x1.device,dtype=torch.int64)*2) +
-                           F.cross_entropy(y2_season[3],torch.ones(x2.shape[0],device=x1.device,dtype=torch.int64)*3))
+            seasonal_loss_y2 = (F.cross_entropy(y2_season[0],torch.ones(x2.shape[0],device=x1.device,dtype=torch.int64)*0) +
+                               F.cross_entropy(y2_season[1],torch.ones(x2.shape[0],device=x1.device,dtype=torch.int64)*1) +
+                               F.cross_entropy(y2_season[2],torch.ones(x2.shape[0],device=x1.device,dtype=torch.int64)*2) +
+                               F.cross_entropy(y2_season[3],torch.ones(x2.shape[0],device=x1.device,dtype=torch.int64)*3))
 
-        seasonal_loss = seasonal_loss_y1 + seasonal_loss_y2
-        #loss = self.loss(y1_projector,y2_projector)
+            seasonal_loss = seasonal_loss_y1 + seasonal_loss_y2
+        else :
+            seasonal_loss = 0
         self.log_dict({'simclr_loss':loss,
                         'seasonal_loss':seasonal_loss,
                         'total_loss': loss+seasonal_loss},prog_bar=True)
