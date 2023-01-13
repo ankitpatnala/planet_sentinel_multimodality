@@ -46,3 +46,9 @@ def sentinel2_dataloader(dataset,batch_size,num_workers,pin_memory,shuffle,is_ra
             pin_memory=pin_memory,
             worker_init_fn=seed_worker if is_random_seed else None,
             generator=g if is_random_seed else None)
+
+if __name__ == "__main__":
+    sentinel2_dataset = Sentinel2Dataset("/p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/utils/h5_folder/validation_train_sentinel_ts.hdf5")
+    print(sentinel2_dataset.dataset.keys())
+            
+

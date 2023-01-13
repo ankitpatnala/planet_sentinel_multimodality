@@ -37,6 +37,7 @@ if __name__ == "__main__":
     parser.add_argument("--self_supervised_loss",type=str,default='simclr')
     parser.add_argument("--temperature",type=float,default=1.0)
     parser.add_argument("--scarf",type=int,default=60)
+    parser.add_argument("--dataset",type=str,default='train')
     args = parser.parse_args()
     pl.trainer.seed_everything(32)
     version = f"{args.trial_number}_{args.method}_{args.pretrain_type}_{args.self_supervised_loss}"
@@ -44,10 +45,12 @@ if __name__ == "__main__":
         version += f"_{args.temperature}"
     if "temporal_transformer" not in args.pretrain_type:
         version += f"_{args.scarf}"
-    if "seasonal" in args.self_supervised_ckpt:
-        version += "_sesaonal"
     
-    wandb_logger = WandbLogger(project=f"{args.project}_{args.trial_number}",
+    if args.self_supervised_ckpt is not None:
+        if "seasonal" in args.self_supervised_ckpt:
+            version += "_sesaonal"
+    
+    wandb_logger = WandbLogger(project=f"{args.project}_{args.dataset}_{args.trial_number}",
                              config=args.__dict__,
                              version=version)
     trainer = pl.Trainer.from_argparse_args(
@@ -61,9 +64,15 @@ if __name__ == "__main__":
     trial_params = study.get_trials()[args['trial_number']].params
     for key in model.return_hyper_parameter_args():
         args[key] = trial_params[key]
-    train_dataset = s2_loader.Sentinel2Dataset("../utils/h5_folder/train_sentinel_ts.hdf5",is_normalize=args['is_normalize'])
+    train_dataset = s2_loader.Sentinel2Dataset("../utils/h5_folder/train_sentinel_ts.hdf5" 
+                                                if args['dataset'] == 'train' 
+                                                else "../utils/h5_folder/validation_train_sentinel_ts.hdf5",
+                                                is_normalize=args['is_normalize'])
     train_dataloader = s2_loader.sentinel2_dataloader(train_dataset,256,8,True,True,True)
-    val_dataset = s2_loader.Sentinel2Dataset("../utils/h5_folder/val_sentinel_ts.hdf5",is_normalize=args['is_normalize'])
+    val_dataset = s2_loader.Sentinel2Dataset("../utils/h5_folder/val_sentinel_ts.hdf5"
+                                                if args['dataset'] == 'train' 
+                                                else "../utils/h5_folder/validation_val_sentinel_ts.hdf5",
+                                               is_normalize=args['is_normalize'])
     val_dataloader = s2_loader.sentinel2_dataloader(val_dataset,256,8,True,False,True)
 
     lightning_model = model(**args)

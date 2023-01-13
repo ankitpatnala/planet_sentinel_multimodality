@@ -2,7 +2,7 @@
 
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --account=deepacf
+#SBATCH --account=esmtst
 #SBATCH --cpus-per-task=32
 #SBATCH --output=run-out.%j
 #SBATCH --error=run-err.%j
