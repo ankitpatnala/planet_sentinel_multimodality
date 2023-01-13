@@ -11,6 +11,8 @@ class MLP(nn.Module):
             dropout=0):
         super(MLP,self).__init__()
 
+        self.num_layers = num_layers
+        self.hidden_dim = hidden_dim
         self.layers = []
         for i in range(num_layers-1):
             self.layers.append(nn.Sequential(nn.Linear(input_dim if i==0 else hidden_dim,hidden_dim),

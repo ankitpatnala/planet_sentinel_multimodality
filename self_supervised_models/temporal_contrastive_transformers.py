@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import torch.nn.functional as F
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 import numpy as np
@@ -16,27 +17,46 @@ from utils.barlow_twin import barlow_loss_func
 from datasets.pretrain_time_dataloader import PretrainingTimeDataset,pretrain_time_dataloader
 
 from self_supervised_models.backbones import MLP
-from self_supervised_models.callbacks import SelfSupervisedTransformerCallback
-from self_supervised_models.transformer_encoder import TransformerEncoder
-
-
+from callbacks.callbacks import SelfSupervisedCallback
+#from self_supervised_models.transformer_encoder import TransformerEncoder
+from self_supervised_models.temporal_vit_time import TransformerEncoder
 
 class TemporalContrastiveLearning(pl.LightningModule):
-    def __init__(self,planet_input_dims,sentinel_input_dims,d_model,n_head,num_layer,mlp_dim,dropout,loss,temperature,learning_rate,is_mixup):
+    def __init__(self,planet_input_dims,sentinel_input_dims,d_model,n_head,num_layer,mlp_dim,dropout,loss,temperature,lr,is_mixup,projector_layer,is_seasonal,**kwargs):
         super(TemporalContrastiveLearning,self).__init__()
-        self.planet_transformer_encoder = TransformerEncoder(planet_input_dims,d_model,n_head,num_layer,mlp_dim,dropout,mode_type='planet')
-        self.sentinel_transformer_encoder = TransformerEncoder(sentinel_input_dims,d_model,n_head,num_layer,mlp_dim,dropout)
+        self.planet_transformer_encoder = TransformerEncoder(planet_input_dims,d_model,n_head,num_layer,mlp_dim,dropout,projector_layer,mode_type='planet',is_seasonal=is_seasonal)
+        self.sentinel_transformer_encoder = TransformerEncoder(sentinel_input_dims,d_model,n_head,num_layer,mlp_dim,dropout,projector_layer,is_seasonal=is_seasonal)
         self.loss = loss
         self.temperature = temperature
-        self.lr = learning_rate
+        self.lr = lr
         self.downstream_accuracy = 0
         self.is_mixup = is_mixup
-        self.kwargs = {'d_model':d_model,
+        self.is_seasonal = is_seasonal
+        self.config = {'d_model':d_model,
                        'n_head':n_head,
                        'num_layer':num_layer,
-                       'mlp_dim':mlp_dim}
+                       'mlp_dim':mlp_dim,
+                       'dropout':dropout,
+                       'projector_layer':projector_layer}
+    
+    @staticmethod
+    def add_model_specific_args(parent_parser):
+        parser = parent_parser.add_argument_group("temporal_transfomer")
+        parser.add_argument("--d_model",type=int,nargs="+",default=[128])
+        parser.add_argument("--n_head",type=int,nargs='+',default=[4])
+        parser.add_argument("--num_layer",type=int,nargs="+",default=[4])
+        parser.add_argument("--mlp_dim",type=int,nargs="+",default=[256])
+        parser.add_argument("--lr",type=float,nargs="+",default=[1e-3,1e-3])
+        parser.add_argument("--dropout",type=float,nargs="+",default=[0.0,0.0])
+        parser.add_argument("--is_mixup",action='store_true')
+        parser.add_argument("--is_seasonal",action='store_true')
+        parser.add_argument("--projector_layer",type=int,default=2)
+        return parent_parser
 
-
+    @staticmethod
+    def return_hyper_parameter_args():
+        return ["d_model","n_head","num_layer","mlp_dim","lr","dropout"]
+    
     def training_step(self,batch,batch_idx):
         x1,x2 = batch
         if self.is_mixup:
@@ -48,16 +68,36 @@ class TemporalContrastiveLearning(pl.LightningModule):
             x2_mix = x2*random_num + x2_reverse*(1-random_num)
             x1 = torch.cat([x1,x1_reverse],dim=0)
             x2 = torch.cat([x2,x2_reverse],dim=0)
+
         y1_embedding,y1_projector = self.sentinel_transformer_encoder(x1)
         y2_embedding,y2_projector = self.planet_transformer_encoder(x2)
         loss = self.loss(y1_projector,y2_projector,self.temperature)
-        #loss = self.loss(y1_projector,y2_projector)
-        self.log_dict({'simclr_loss':loss},prog_bar=True)
-        return loss
+            
+        if self.is_seasonal:
+            y1_season = self.sentinel_transformer_encoder.return_chunk_embeddings(x1)
+            y2_season = self.planet_transformer_encoder.return_chunk_embeddings(x2)
+            seasonal_loss_y1 = (F.cross_entropy(y1_season[0],torch.ones(x1.shape[0],device=x1.device,dtype=torch.int64)*0) +
+                               F.cross_entropy(y1_season[1],torch.ones(x1.shape[0],device=x1.device,dtype=torch.int64)*1) +
+                               F.cross_entropy(y1_season[2],torch.ones(x1.shape[0],device=x1.device,dtype=torch.int64)*2) +
+                               F.cross_entropy(y1_season[3],torch.ones(x1.shape[0],device=x1.device,dtype=torch.int64)*3))
+
+            seasonal_loss_y2 = (F.cross_entropy(y2_season[0],torch.ones(x2.shape[0],device=x1.device,dtype=torch.int64)*0) +
+                               F.cross_entropy(y2_season[1],torch.ones(x2.shape[0],device=x1.device,dtype=torch.int64)*1) +
+                               F.cross_entropy(y2_season[2],torch.ones(x2.shape[0],device=x1.device,dtype=torch.int64)*2) +
+                               F.cross_entropy(y2_season[3],torch.ones(x2.shape[0],device=x1.device,dtype=torch.int64)*3))
+
+            seasonal_loss = seasonal_loss_y1 + seasonal_loss_y2
+        else :
+            seasonal_loss = 0
+        self.log_dict({'simclr_loss':loss,
+                        'seasonal_loss':seasonal_loss,
+                        'total_loss': loss+seasonal_loss},prog_bar=True)
+
+        return loss+seasonal_loss
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(),lr=self.lr)
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,1000,500000,5e-5)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,int(0.05*self.trainer.max_epochs),self.trainer.max_epochs,5e-5)
         return [optimizer],[scheduler]
 
 def run_temporal_contrastive(trial):
@@ -91,7 +131,6 @@ def run_temporal_contrastive(trial):
             callbacks=[callback])
 
     trainer.fit(temporal_contrastive,pretraining_time_dataloader)
-    print(temporal_contrastive.downstream_accuracy)
     return temporal_contrastive.downstream_accuracy
 
 class HyperParameterCallback:

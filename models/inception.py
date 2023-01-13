@@ -18,23 +18,13 @@ import joblib
 sys.path.append("../../planet_sentinel_multi_modality")
 
 from datasets import sentinel2_dataloader as s2_loader
-
-def return_self_supervised_model_sentinel2(ckpt_path):
-    sentinel_mlp = MLP(12,4,256)
-    ckpt = torch.load(ckpt_path)
-    new_ckpt = {}
-    for key in ckpt['state_dict'].keys():
-        if 'backbone_sentinel' in key:
-            mlp_key = re.sub('backbone_sentinel.',"",key)
-            new_ckpt[mlp_key] = ckpt['state_dict'][key]
-    sentinel_mlp.load_state_dict(new_ckpt)
-    return sentinel_mlp,256
+from models.return_self_supervised_model import return_self_supervised_model_sentinel2,run_time_series_with_mlp
 
 class InceptionTime(pl.LightningModule):
     def __init__(
             self,
-            input_dim=12,
-            num_classes=9,
+            input_dim,
+            num_classes,
             num_layers=6,
             hidden_dims=128,
             kernel_size=40,
@@ -42,11 +32,12 @@ class InceptionTime(pl.LightningModule):
             loss=F.cross_entropy,
             optimizer=torch.optim.Adam,
             lr=0.001,
-            self_supervised_ckpt=None):
+            self_supervised_ckpt=None,
+            **kwargs):
         super(InceptionTime,self).__init__()
         self.save_hyperparameters()
         if self_supervised_ckpt is not None:
-            self.self_supervised,input_dim = return_self_supervised_model_sentinel2(self_supervised_ckpt)
+            self.self_supervised,input_dim = return_self_supervised_model_sentinel2(self_supervised_ckpt,**kwargs)
             for param in self.self_supervised.parameters():
                 param.requires_grad=False
             self.self_supervised.eval()
@@ -65,41 +56,66 @@ class InceptionTime(pl.LightningModule):
         self.optim = optimizer
         self.lr = lr
         self.accuracy = torchmetrics.Accuracy()
-        self.accuracy_score = 0.0 
+        self.f1 = torchmetrics.classification.MulticlassF1Score(num_classes=num_classes)
+        self.accuracy_score = 0.0
+        self.f1_score = 0.0
+    
+    @staticmethod
+    def add_model_specific_args(parent_parser):
+        parser = parent_parser.add_argument_group("inception")
+        parser.add_argument("--hidden_dims",type=int,nargs="+",default=[128])
+        parser.add_argument("--num_layers",type=int,nargs='+',default=[4])
+        parser.add_argument("--lr",type=float,nargs="+",default=[1e-3,1e-3])
+        parser.add_argument("--kernel_size",type=int,nargs="+",default=[40])
+        return parent_parser
 
+    @staticmethod
+    def return_hyper_parameter_args():
+        return ["hidden_dims","num_layers","lr","kernel_size"]
 
     def training_step(self,batch,batch_idx):
         x,y = batch
         if self.embedding:
             with torch.no_grad():
-                x = self.self_supervised(x)
+                x = run_time_series_with_mlp(self.self_supervised,x)
         y_pred = self.inception_time(x)
         loss = self.loss(y_pred,y-1)
-        self.log_dict({'training_loss':loss},prog_bar=True)
+        acc = self.accuracy(y_pred,y-1)
+        f1 = self.f1(y_pred,y-1)
+        self.log_dict({'training_loss':loss,
+                      'training_acc':acc,
+                      'training_f1':f1},prog_bar=True)
         return loss
 
     def validation_step(self,batch,batch_idx):
         x,y = batch
         if self.embedding:
             with torch.no_grad():
-                x = self.self_supervised(x)
+                x = run_time_series_with_mlp(self.self_supervised,x)
         y_pred = self.inception_time(x)
         loss = self.loss(y_pred,y-1)
         acc  = self.accuracy(y_pred,y-1)
-        return {'val_loss':loss,'val_acc':acc}
+        f1 = self.f1(y_pred,y-1)
+        return {'val_loss':loss,'val_acc':acc,'val_f1':f1}
 
     def validation_epoch_end(self,outputs):
         loss = []
         acc = []
+        f1_score = []
         for output in outputs:
             loss.append(output['val_loss'])
             acc.append(output['val_acc'])
+            f1_score.append(output['val_f1'])
         self.accuracy_score = torch.mean(torch.Tensor(acc))
         loss = torch.mean(torch.Tensor(loss))
-        self.log_dict({"val_loss":loss,"val_acc":self.accuracy_score},prog_bar=True)
+        self.f1_score = torch.mean(torch.Tensor(f1_score))
+        self.log_dict({"val_loss":loss,"val_acc":self.accuracy_score,'val_f1':self.f1_score},prog_bar=True)
 
     def configure_optimizers(self):
-        return self.optim(self.parameters(),lr=self.lr)
+        optimizer = self.optim(self.parameters(),lr=self.lr,weight_decay=1e-5)
+        lr_scheduler = {'scheduler' : torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer),
+                        'monitor' : 'val_acc'}
+        return [optimizer],[lr_scheduler]
 
 def train_transformer(trial,ckpt_path=None):
     lr = trial.suggest_float("lr",1e-5,1e-3,log=True)

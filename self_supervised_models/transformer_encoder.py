@@ -10,7 +10,7 @@ with open("../utils/h5_folder/time_stamp_sentinel_list.pkl",'rb') as pickle_read
     sentinel_days = (pickle.load(pickle_reader))
 
 with open("../utils/h5_folder/time_stamp_planet_list.pkl",'rb') as pickle_reader:
-    planet_days = (pickle.load(pickle_reader))
+    planet_days = (pickle.load(pickle_reader))*5
     
     
 def pos_embedding(input_dim,days):
@@ -94,7 +94,6 @@ def trunc_normal_(tensor, mean=0., std=1., a=-2., b=2.):
 class TransformerEncoder(nn.Module):
     def __init__(self,num_inputs,d_model,n_head,num_layer,mlp_dim,dropout,mode_type='sentinel',activation=nn.GELU()):
         super(TransformerEncoder,self).__init__()
-        #self.linear = nn.Linear(num_inputs,d_model)
         self.patch_embed = nn.Conv1d(num_inputs,d_model,1,1)
         self.class_token = nn.parameter.Parameter(torch.randn(1,1,d_model,requires_grad=True))
         self.encoder_layer = nn.TransformerEncoderLayer(d_model,n_head,dim_feedforward=mlp_dim,dropout=dropout)
@@ -115,7 +114,6 @@ class TransformerEncoder(nn.Module):
     def forward(self,x):
         n,t,c = x.shape
         repeat_class_token = torch.repeat_interleave(self.class_token,n,dim=0)
-        #x = self.linear(x.reshape(-1,c)).reshape(n,t,-1)
         x = torch.permute(self.patch_embed(torch.permute(x,[0,2,1])),dims=[0,2,1])
         x  = x + self.pos_embedding
         x = torch.cat([repeat_class_token,x],dim=1)
@@ -128,7 +126,6 @@ class TransformerEncoder(nn.Module):
     def return_embeddings(self,x):
         n,t,c = x.shape
         repeat_class_token = torch.repeat_interleave(self.class_token,n,dim=0)
-        #x = self.linear(x.reshape(-1,c)).reshape(n,t,-1)
         x = torch.permute(self.patch_embed(torch.permute(x,[0,2,1])),dims=[0,2,1])
         x  = x + self.pos_embedding
         x = torch.cat([repeat_class_token,x],dim=1)

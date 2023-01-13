@@ -1,9 +1,63 @@
 import torch
 from torch import nn
 from collections import OrderedDict
+import collections.abc
+from itertools import repeat
+from typing import Callable
 
-
+from functools import partial
+from self_supervised_models.transformer_encoder import trunc_normal_ 
+ 
 """most of the codes are taken from timm's vision transformer class"""
+def named_apply(fn: Callable, module: nn.Module, name='', depth_first=True, include_root=False) -> nn.Module:
+    if not depth_first and include_root:
+        fn(module=module, name=name)
+    for child_name, child_module in module.named_children():
+        child_name = '.'.join((name, child_name)) if name else child_name
+        named_apply(fn=fn, module=child_module, name=child_name, depth_first=depth_first, include_root=True)
+    if depth_first and include_root:
+        fn(module=module, name=name)
+    return module
+
+def _ntuple(n):
+    def parse(x):
+        if isinstance(x, collections.abc.Iterable) and not isinstance(x, str):
+            return x
+        return tuple(repeat(x, n))
+    return parse
+
+to_2tuple = _ntuple(2)
+
+
+def init_weights_vit_timm(module: nn.Module, name: str = ''):
+    """ ViT weight initialization, original timm impl (for reproducibility) """
+    if isinstance(module, nn.Linear):
+        trunc_normal_(module.weight, std=.02)
+        if module.bias is not None:
+            nn.init.zeros_(module.bias)
+    elif hasattr(module, 'init_weights'):
+        module.init_weights()
+
+
+class TimeEmbed(nn.Module):
+    def __init__(self,
+            input_size=144,
+            patch_size=1,
+            in_chans=12,
+            embed_dim=64,
+            norm_layer=None,
+            bias=True):
+        super(TimeEmbed,self).__init__()
+        self.proj = nn.Conv1d(in_chans,embed_dim,patch_size,bias=bias)
+        self.norm_layer = norm_layer if norm_layer else nn.Identity()
+        self.num_patches = input_size
+
+    def forward(self,x):
+        x = torch.permute(x,[0,2,1])
+        x = self.proj(x)
+        x = self.norm_layer(x)
+        return x.permute([0,2,1])
+
 
 class DropPath(nn.Module):
     """Drop paths (Stochastic Depth) per sample  (when applied in main path of residual blocks).
@@ -119,8 +173,9 @@ class EncoderTransformer(nn.Module):
 
     def __init__(
             self,
-            input_size=12,
-            patch_size=144,
+            input_size=144,
+            in_chans=12,
+            patch_size=1,
             num_classes=256,
             global_pool='token',
             embed_dim=64,
@@ -137,7 +192,7 @@ class EncoderTransformer(nn.Module):
             attn_drop_rate=0.,
             drop_path_rate=0.,
             weight_init='',
-            embed_layer=PatchEmbed,
+            embed_layer=TimeEmbed,
             norm_layer=None,
             act_layer=None,
             block_fn=Block,
@@ -180,7 +235,7 @@ class EncoderTransformer(nn.Module):
         self.grad_checkpointing = False
 
         self.patch_embed = embed_layer(
-            img_size=img_size,
+            input_size=input_size,
             patch_size=patch_size,
             in_chans=in_chans,
             embed_dim=embed_dim,
@@ -224,7 +279,7 @@ class EncoderTransformer(nn.Module):
         trunc_normal_(self.pos_embed, std=.02)
         if self.cls_token is not None:
             nn.init.normal_(self.cls_token, std=1e-6)
-        named_apply(get_init_weights_vit(mode, head_bias), self)
+        named_apply(init_weights_vit_timm,self)
 
     def _init_weights(self, m):
         # this fn left here for compat with downstream users
@@ -296,3 +351,11 @@ class EncoderTransformer(nn.Module):
         x = self.forward_features(x)
         x = self.forward_head(x)
         return x
+if __name__ == "__main__":
+    embed_former = EncoderTransformer(
+                    input_size=144,)
+
+    a = torch.randn((36,144,12))
+    print(embed_former.forward_features(a).shape)
+
+

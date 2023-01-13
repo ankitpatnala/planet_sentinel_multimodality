@@ -20,42 +20,8 @@ import joblib
 sys.path.append("../../planet_sentinel_multi_modality")
 
 from datasets import sentinel2_dataloader as s2_loader
+from models.return_self_supervised_model import return_self_supervised_model_sentinel2,run_time_series_with_mlp
 
-def return_self_supervised_model_sentinel2(ckpt_path,type='mlp',config=None):
-    if type == "mlp":
-        sentinel_mlp = MLP(12,4,256)
-        model_name = 'backbone_sentinel'
-        emb_dim = 256
-    if type == "resmlp":
-        sentinel_mlp = ResMLP(12,4,256)
-        model_name = 'backbone_sentinel'
-        emb_dim = 256
-    if type == 'temporal_transformer':
-        sentinel_mlp = TransformerEncoder(
-                12,
-                32,
-                16,   #config['n_head'],
-                4,   #config['num_layer'],
-                128,   #config['mlp_dim'],
-                0.2)
-        model_name = 'sentinel_transformer_encoder'
-        emb_dim = 128 #config['mlp_dim']
-    ckpt = torch.load(ckpt_path)
-    new_ckpt = OrderedDict()
-    for key in ckpt['state_dict'].keys():
-        if model_name in key:
-            mlp_key = re.sub(f'{model_name}.',"",key)
-            new_ckpt[mlp_key] = ckpt['state_dict'][key]
-    sentinel_mlp.load_state_dict(new_ckpt)
-    return sentinel_mlp,emb_dim
-
-def run_time_series_with_mlp(model,x):
-    b,t,n = x.shape
-    if hasattr(model,'return_embeddings'):
-        x =  model.return_embeddings(x)
-        return x
-    x = model(x.reshape(-1,n)).reshape(b,t,-1)
-    return x
 
 class LSTM(pl.LightningModule):
     def __init__(
@@ -71,9 +37,18 @@ class LSTM(pl.LightningModule):
             self_supervised_ckpt=None,
             **kwargs):
         super(LSTM,self).__init__()
-        self.save_hyperparameters()
+        
+        self.loss = loss
+        self.optim = optimizer
+        self.lr = lr
+        self.dropout = dropout
+        self.accuracy = torchmetrics.Accuracy()
+        self.f1 = torchmetrics.classification.MulticlassF1Score(num_classes=num_classes)
+        self.accuracy_score = 0.0
+        self.f1_score = 0.0
+        
         if self_supervised_ckpt is not None:
-            self.self_supervised,input_dim = return_self_supervised_model_sentinel2(self_supervised_ckpt,type='temporal_transformer',**kwargs)
+            self.self_supervised,input_dim = return_self_supervised_model_sentinel2(self_supervised_ckpt,**kwargs)
             for param in self.self_supervised.parameters():
                 param.requires_grad=False
             self.self_supervised.eval()
@@ -85,12 +60,29 @@ class LSTM(pl.LightningModule):
                 num_classes=num_classes,
                 hidden_dims=hidden_dims,
                 num_layers=num_layers,
-                dropout=dropout)
-        self.loss = loss
-        self.optim = optimizer
-        self.lr = lr
-        self.accuracy = torchmetrics.Accuracy()
-        self.accuracy_score = 0.0 
+                dropout=self.dropout)
+
+
+    @staticmethod
+    def add_model_specific_args(parent_parser):
+        parser = parent_parser.add_argument_group("lstm")
+        parser.add_argument("--hidden_dims",type=int,nargs="+",default=[128])
+        parser.add_argument("--num_layers",type=int,nargs='+',default=[4])
+        parser.add_argument("--lr",type=float,nargs="+",default=[1e-3,1e-3])
+        parser.add_argument("--dropout",type=float,nargs="+",default=[0.0,0.0])
+        return parent_parser
+
+    @staticmethod
+    def model_specific_tuner_arg(args,trial):
+        args.hidden_dims = trial.suggest_categorical("hidden_dims",args.hidden_dims) 
+        args.lr = trial.suggest_float("lr",args.lr[0],args.lr[1],log=True)
+        args.num_layers = trial.suggest_categorical("num_layers",args.num_layers)
+        args.dropout = trial.suggest_uniform("dropout",args.dropout[0],args.dropout[1])
+        return args
+
+    @staticmethod
+    def return_hyper_parameter_args():
+        return ["hidden_dims","lr","num_layers","dropout"]
 
     def training_step(self,batch,batch_idx):
         x,y = batch
@@ -99,7 +91,11 @@ class LSTM(pl.LightningModule):
                 x = run_time_series_with_mlp(self.self_supervised,x)
         y_pred = self.lstm(x)
         loss = self.loss(y_pred,y-1)
-        self.log_dict({'training_loss':loss},prog_bar=True)
+        acc = self.accuracy(y_pred,y-1)
+        f1 = self.f1(y_pred,y-1)
+        self.log_dict({'training_loss':loss,
+                      'training_acc':acc,
+                      'training_f1':f1},prog_bar=True)
         return loss
 
     def validation_step(self,batch,batch_idx):
@@ -110,22 +106,24 @@ class LSTM(pl.LightningModule):
         y_pred = self.lstm(x)
         loss = self.loss(y_pred,y-1)
         acc  = self.accuracy(y_pred,y-1)
-        return {'val_loss':loss,'val_acc':acc}
-
-        #self.log_dict({'validation_loss':loss,'validation_acc':acc},prog_bar=True)
+        f1 = self.f1(y_pred,y-1)
+        return {'val_loss':loss,'val_acc':acc,'val_f1':f1}
 
     def validation_epoch_end(self,outputs):
         loss = []
         acc = []
+        f1_score = []
         for output in outputs:
             loss.append(output['val_loss'])
             acc.append(output['val_acc'])
+            f1_score.append(output['val_f1'])
         self.accuracy_score = torch.mean(torch.Tensor(acc))
         loss = torch.mean(torch.Tensor(loss))
-        self.log_dict({"val_loss":loss,"val_acc":self.accuracy_score},prog_bar=True)
+        self.f1_score = torch.mean(torch.Tensor(f1_score))
+        self.log_dict({"val_loss":loss,"val_acc":self.accuracy_score,'val_f1':self.f1_score},prog_bar=True)
 
     def configure_optimizers(self):
-        return self.optim(self.lstm.parameters(),lr=self.lr)
+        return self.optim(self.lstm.parameters(),lr=self.lr,weight_decay=1e-5)
 
 def train_lstm(trial,ckpt_path=None):
     lr = trial.suggest_float("lr",1e-5,1e-3,log=True)
