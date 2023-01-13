@@ -6,3 +6,4 @@ breizhcrops
 lightning
 wandb
 optuna
+argparse
