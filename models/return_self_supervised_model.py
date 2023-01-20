@@ -27,7 +27,7 @@ def return_self_supervised_model_sentinel2(ckpt_path,pretrain_type='temporal_tra
                 config['hidden_dim'] if config is not None else 256)
         backbone_model_name = 'backbone_sentinel'
         emb_dim = config['hidden_dim'] if config is not None else 256
-    if pretrain_type == 'temporal_transformer':
+    if pretrain_type == ('temporal_transformer' or 'bert_style_transformer'):
         sentinel_mlp = TransformerEncoder(
                 12,
                 config['d_model'] if config is not None else 64,

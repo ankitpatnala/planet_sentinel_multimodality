@@ -38,13 +38,13 @@ python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main_down
 		--dropout 0.0 0.6 \
 		--baseline_hyper_param_file ../hyp_tune_transformer2.pkl \
 		--trial_number $number \
-		--pretrain_type resmlp \
+		--pretrain_type temporal_transformer \
 		--is_normalize \
 		--self_supervised_loss simclr \
 		--temperature 0.7 \
 		--scarf 20 \
 		--dataset val \
-		--self_supervised_ckpt /p/scratch/deepacf/kiste/patnala1/planet_sentinel_multimodality/checkpoint_files/resmlp/simclr/0.7/20/epoch=99-step=703200.ckpt
+		--self_supervised_ckpt /p/scratch/deepacf/kiste/patnala1/planet_sentinel_multimodality/checkpoint_files/temporal_transformer/simclr/0.7/epoch=99-step=58600.ckpt
 
 python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main_downstream.py \
 		--method lstm \
@@ -54,27 +54,27 @@ python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main_down
 		--dropout 0.0 0.6 \
 		--baseline_hyper_param_file ../hyp_tune_lstm2.pkl \
 		--trial_number $number \
-		--pretrain_type resmlp \
+		--pretrain_type temporal_transformer \
 		--is_normalize \
 		--self_supervised_loss simclr \
 		--temperature 0.7 \
 		--scarf 20 \
 		--dataset val \
-		--self_supervised_ckpt /p/scratch/deepacf/kiste/patnala1/planet_sentinel_multimodality/checkpoint_files/resmlp/simclr/0.7/20/epoch=99-step=703200.ckpt
+		--self_supervised_ckpt /p/scratch/deepacf/kiste/patnala1/planet_sentinel_multimodality/checkpoint_files/temporal_transformer/simclr/0.7/epoch=99-step=58600.ckpt
 
-python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main_downstream.py \
-		--method inception \
-		--hidden_dims 128 256 512\
-		--num_layers 2 4 6 8\
-		--lr 1e-5 1e-3    \
-		--kernel_size 40 80 120 160 \
-		--baseline_hyper_param_file ../hyp_tune_inception2.pkl \
-		--trial_number $number \
-		--pretrain_type resmlp \
-		--is_normalize \
-		--self_supervised_loss simclr \
-		--temperature 0.7 \
-		--scarf 20 \
-		--dataset val \
-		--self_supervised_ckpt /p/scratch/deepacf/kiste/patnala1/planet_sentinel_multimodality/checkpoint_files/resmlp/simclr/0.7/20/epoch=99-step=703200.ckpt
+#python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main_downstream.py \
+#		--method inception \
+#		--hidden_dims 128 256 512\
+#		--num_layers 2 4 6 8\
+#		--lr 1e-5 1e-3    \
+#		--kernel_size 40 80 120 160 \
+#		--baseline_hyper_param_file ../hyp_tune_inception2.pkl \
+#		--trial_number $number \
+#		--pretrain_type temporal_transformer \
+#		--is_normalize \
+#		--self_supervised_loss simclr \
+#		--temperature 0.7 \
+#		--scarf 20 \
+#		--dataset val \
+#		--self_supervised_ckpt /p/scratch/deepacf/kiste/patnala1/planet_sentinel_multimodality/checkpoint_files/temporal_transformer/simclr/0.7/epoch=99-step=58600.ckpt
 done
