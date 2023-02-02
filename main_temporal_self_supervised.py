@@ -6,6 +6,8 @@ import argparse
 from datasets import sentinel2_dataloader as s2_loader
 from datasets.pretrain_dataloader import PretrainingDataset,pretrain_dataloader
 from datasets.pretrain_time_dataloader import PretrainingTimeDataset,pretrain_time_dataloader
+from datasets.bert_style_dataloader import BertDataset,bert_dataloader
+
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
@@ -16,9 +18,10 @@ import copy
 from models.lstm import HyperParameterCallback
 
 def objective(trial,self_supervised_model,args):
-    pretraining_time_dataset = PretrainingTimeDataset("../utils/h5_folder/pretraining_time2.h5")
-    pretraining_time_dataloader = pretrain_time_dataloader(pretraining_time_dataset,256,16,True,True,True)
-
+    #pretraining_time_dataset = PretrainingTimeDataset("../utils/h5_folder/pretraining_time2.h5")
+    #pretraining_time_dataloader = pretrain_time_dataloader(pretraining_time_dataset,256,16,True,True,True)
+    pretraining_time_dataset  = BertDataset("../utils/h5_folder/pretraining_time2.h5")
+    pretraining_time_dataloader = bert_dataloader(pretraining_time_dataset,256,16,True,True,True)
     pl.trainer.seed_everything(32)
 
     trial_args = self_supervised_model.return_hyper_parameter_args()
@@ -62,7 +65,7 @@ def objective(trial,self_supervised_model,args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    self_supervised_model = SELF_SUPERVISED_TYPE['time']
+    self_supervised_model = SELF_SUPERVISED_TYPE['bert']
     parser.add_argument("--loss",type=str,default="simclr")
     parser.add_argument("--temperature",type=float,default=0.07)
     parser.add_argument("--baseline_hyper_param_file",type=str,default=None)
@@ -91,4 +94,4 @@ if __name__ == "__main__":
                         self_supervised_model,
                         args),
                         n_trials=n_trials,
-                        callbacks=[HyperParameterCallback("../hyp_temp_self_supervised_{args.baseline_model_type}.pkl")])
+                        callbacks=[HyperParameterCallback("../hyp_bert_syle_temp_self_supervised_{args.baseline_model_type}.pkl")])

@@ -43,14 +43,7 @@ class PretrainingTimeDataset(Dataset):
         sentinel2_data = torch.Tensor((self.dataset['sentinel2_data'][idx]/10000).astype(np.float32))
         if not self.is_normalize:
             return sentinel2_data,planet_data.reshape(365,-1)
-            #return ((self.dataset['sentinel2_data'][idx]/10000).astype(np.float32),
-            #        ((self.dataset['planet_data'][idx]/10000).astype(np.float32)))
         else :
-            #normalize_sentinel = (
-            #        (torch.Tensor((self.dataset['sentinel2_data'][idx]/10000).astype(np.float32))-self.sentinel_mean)/self.sentinel_var)
-            #normalize_planet = ((
-            #        (torch.Tensor(self.dataset['planet_data'][idx]/10000).permute(0,2,3,1)-self.planet_mean)/self.planet_var).permute(
-            #                0,3,1,2).reshape(365,-1))
             normalize_sentinel = (sentinel2_data-self.sentinel_mean)/self.sentinel_var
             normalize_planet = ((planet_data.permute(0,2,1)-self.planet_mean)/self.planet_var).reshape(365,-1)
             return normalize_sentinel,normalize_planet
@@ -101,7 +94,7 @@ if __name__ == "__main__":
     #                   'planet_var' : planet_var}
     #with open("mean_var_list3.pkl",'wb') as pickle_writer:
     #    pickle.dump(mean_var_values,pickle_writer)
-    pretraining_time_dataset = PretrainingTimeDataset("../utils/h5_folder/pretraining_time2.h5",is_normalize=False)
+    pretraining_time_dataset = PretrainingTimeDataset("../utils/h5_folder/pretraining_time2.h5",is_normalize=True)
     sentinel_data,planet_data = pretraining_time_dataset[10]
     print(sentinel_data[45],planet_data[102])
 

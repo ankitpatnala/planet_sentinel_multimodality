@@ -28,8 +28,6 @@ master_addr=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
 export MASTER_ADDR=$master_addr
 
 
-for temperature in  0.04 0.07 0.7
-do
 for((number=0;number<10;number++))
 do
 python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main_downstream.py \
@@ -40,13 +38,11 @@ python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main_down
 		--dropout 0.0 0.6 \
 		--baseline_hyper_param_file ../hyp_tune_val_lstm2_normalize.pkl \
 		--trial_number $number \
-		--pretrain_type temporal_transformer \
+		--pretrain_type bert_style_transformer \
 		--is_normalize \
 		--self_supervised_loss simclr \
-		--temperature $temperature \
-		--scarf 20 \
 		--dataset val \
-		--self_supervised_ckpt /p/scratch/deepacf/kiste/patnala1/planet_sentinel_multimodality/checkpoint_files/temporal_transformer/simclr/$temperature/epoch=99-step=58600.ckpt
+		--self_supervised_ckpt temporal_transformer_seasonal/simclr/0.7/epoch=99-step=58600.ckpt
 
 python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main_downstream.py \
 		--method transformer \
@@ -57,13 +53,11 @@ python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main_down
 		--dropout 0.0 0.6 \
 		--baseline_hyper_param_file ../hyp_tune_val_transformer2_normalize.pkl \
 		--trial_number $number \
-		--pretrain_type temporal_transformer \
+		--pretrain_type bert_style_transformer \
 		--is_normalize \
 		--self_supervised_loss simclr \
-		--temperature $temperature \
-		--scarf 20 \
 		--dataset val \
-		--self_supervised_ckpt /p/scratch/deepacf/kiste/patnala1/planet_sentinel_multimodality/checkpoint_files/temporal_transformer/simclr/$temperature/epoch=99-step=58600.ckpt
+		--self_supervised_ckpt temporal_transformer_seasonal/simclr/0.7/epoch=99-step=58600.ckpt
 
 python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main_downstream.py \
 		--method inception \
@@ -73,13 +67,10 @@ python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main_down
 		--kernel_size 40 80 120 160 \
 		--baseline_hyper_param_file ../hyp_tune_val_inception2_normalize.pkl \
 		--trial_number $number \
-		--pretrain_type temporal_transformer \
+		--pretrain_type bert_style_transformer \
 		--is_normalize \
 		--self_supervised_loss simclr \
-		--temperature $temperature \
-		--scarf 20 \
 		--dataset val \
-		--self_supervised_ckpt /p/scratch/deepacf/kiste/patnala1/planet_sentinel_multimodality/checkpoint_files/temporal_transformer/simclr/$temperature/epoch=99-step=58600.ckpt
+		--self_supervised_ckpt temporal_transformer_seasonal/simclr/0.7/epoch=99-step=58600.ckpt
 
-done
 done

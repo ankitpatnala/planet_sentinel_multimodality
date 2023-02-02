@@ -123,7 +123,10 @@ class LSTM(pl.LightningModule):
         self.log_dict({"val_loss":loss,"val_acc":self.accuracy_score,'val_f1':self.f1_score},prog_bar=True)
 
     def configure_optimizers(self):
-        return self.optim(self.lstm.parameters(),lr=self.lr,weight_decay=1e-5)
+        optimizer = self.optim(self.parameters(),lr=self.lr,weight_decay=1e-5)
+        lr_scheduler = {'scheduler' : torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer),
+                        'monitor' : 'val_acc'}
+        return [optimizer],[lr_scheduler]
 
 def train_lstm(trial,ckpt_path=None):
     lr = trial.suggest_float("lr",1e-5,1e-3,log=True)

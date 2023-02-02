@@ -86,7 +86,7 @@ def convert_sentinel_to_planetscope(idx):
     return int(idx*10/3)
 
 def get_sentinel_time_series(sentinel_array,idx_crop_list,output_file_name="sentinel_ts.hdf5",mode="train"):
-    h5_folder = os.path.join("./h5_folder")
+    h5_folder = os.path.join("./h5_folder2")
     if not os.path.isdir(h5_folder):
         os.makedirs(h5_folder)
     sentinel_array = np.transpose(sentinel_array,[0,3,1,2])

@@ -17,10 +17,16 @@ MODELS = {'lstm':LSTM,
           'inception':InceptionTime,
           'transformer':Transformer}
 def objective(trial,model,model_args,args):
-    train_dataset = s2_loader.Sentinel2Dataset("../utils/h5_folder/train_sentinel_ts.hdf5",is_normalize=model_args.is_normalize)
-    train_dataloader = s2_loader.sentinel2_dataloader(train_dataset,256,8,True,True,True)
-    val_dataset = s2_loader.Sentinel2Dataset("../utils/h5_folder/val_sentinel_ts.hdf5",is_normalize=model_args.is_normalize)
-    val_dataloader = s2_loader.sentinel2_dataloader(val_dataset,256,8,True,False,True)
+    if model_args.dataset == "train":
+        train_dataset = s2_loader.Sentinel2Dataset("../utils/h5_folder/train_sentinel_ts.hdf5",is_normalize=model_args.is_normalize)
+        train_dataloader = s2_loader.sentinel2_dataloader(train_dataset,256,8,True,True,True)
+        val_dataset = s2_loader.Sentinel2Dataset("../utils/h5_folder/val_sentinel_ts.hdf5",is_normalize=model_args.is_normalize)
+        val_dataloader = s2_loader.sentinel2_dataloader(val_dataset,256,8,True,False,True)
+    else :
+        train_dataset = s2_loader.Sentinel2Dataset("../utils/h5_folder/validation_train_sentinel_ts.hdf5",is_normalize=model_args.is_normalize)
+        train_dataloader = s2_loader.sentinel2_dataloader(train_dataset,256,8,True,True,True)
+        val_dataset = s2_loader.Sentinel2Dataset("../utils/h5_folder/validation_val_sentinel_ts.hdf5",is_normalize=model_args.is_normalize)
+        val_dataloader = s2_loader.sentinel2_dataloader(val_dataset,256,8,True,False,True)
 
     pl.trainer.seed_everything(32)
     trial_args = model.return_hyper_parameter_args()
@@ -43,7 +49,7 @@ def objective(trial,model,model_args,args):
             args,
             accelerator='gpu',
             devices=1,
-            max_epochs=50,
+            max_epochs=20,
             logger=wandb_logger)
 
     trainer.fit(lightning_model,train_dataloader,val_dataloader)
@@ -58,19 +64,20 @@ if __name__ == "__main__":
     model.add_model_specific_args(parser)
     parser.add_argument("--input_dim",type=int,default=12)
     parser.add_argument("--num_classes",type=int,default=9)
-    parser.add_argument("--project",type=str,default="planet_sentinel_baseline")
+    parser.add_argument("--project",type=str,default="planet_sentinel_baseline_val")
     parser.add_argument("--hyperparameter_tuning",action='store_true')
     parser.add_argument("--self_supervised_ckpt",type=str,default=None)
     parser.add_argument("--backbone_type",type=str,default="resmlp")
     parser.add_argument("--hyperparameter_resume_file",type=str,default=None)
     parser.add_argument("--is_normalize",action='store_true')
+    parser.add_argument("--dataset",type=str,default="train")
     model_args,_ = parser.parse_known_args()
     pl.Trainer.add_argparse_args(parser)
     args = pl.Trainer.parse_argparser(parser.parse_args(""))
     args = parser.parse_args([])
 
     if model_args.hyperparameter_tuning:
-        n_trials = 25
+        n_trials = 10
     else:
         n_trials = 1
 
@@ -85,7 +92,7 @@ if __name__ == "__main__":
                         model_args,
                         args),
                         n_trials=n_trials,
-                        callbacks=[HyperParameterCallback(f"../hyp_tune_{temp_args.method}2.pkl")])
+                        callbacks=[HyperParameterCallback(f"../hyp_tune_val_{temp_args.method}2_normalize.pkl")])
 
 
 
