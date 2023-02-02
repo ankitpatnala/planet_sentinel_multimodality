@@ -2,7 +2,7 @@
 
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --account=deepacf
+#SBATCH --account=esmtst
 #SBATCH --cpus-per-task=32
 #SBATCH --output=run-out.%j
 #SBATCH --error=run-err.%j
@@ -47,8 +47,8 @@ export CUDA_VISIBLE_DEVICES="0"
 python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main_temporal_self_supervised.py \
   	--baseline_model_type transformer \
   	--pretrain_type temporal_transformer \
-	--loss $1 \
-  	--temperature $2 \
+	--loss simclr \
+  	--temperature 0.7 \
   	--d_model 64 \
   	--n_head 4 \
   	--num_layer 4  \

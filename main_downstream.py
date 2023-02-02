@@ -40,7 +40,7 @@ if __name__ == "__main__":
     parser.add_argument("--dataset",type=str,default='train')
     args = parser.parse_args()
     pl.trainer.seed_everything(32)
-    version = f"{args.trial_number}_{args.method}_{args.pretrain_type}_{args.self_supervised_loss}"
+    version = f"{args.trial_number}_{args.method}_{args.pretrain_type}_{args.self_supervised_loss}_hdfml"
     if args.self_supervised_loss == 'simclr':
         version += f"_{args.temperature}"
     if "temporal_transformer" not in args.pretrain_type:
@@ -57,7 +57,7 @@ if __name__ == "__main__":
             args,
             accelerator='gpu',
             devices=1,
-            max_epochs=50,
+            max_epochs=20,
             logger=wandb_logger)
     args = args.__dict__
     study = joblib.load(args['baseline_hyper_param_file'])

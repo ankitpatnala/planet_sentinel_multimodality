@@ -68,7 +68,7 @@ def validation_time_series(mode="train"):
     get_sentinel_time_series(sentinel2_data,(width_index,height_index,crop_labels),mode=f"validation_{mode}")
 
 if __name__ == "__main__":
-    split_and_save_crop_field_train_and_val(val_gpd_file)
+    #split_and_save_crop_field_train_and_val(val_gpd_file)
     validation_time_series()
     validation_time_series("val")
 
