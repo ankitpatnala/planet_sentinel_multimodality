@@ -15,13 +15,13 @@ def return_self_supervised_model_sentinel2(ckpt_path,pretrain_type='temporal_tra
         best_param = trial.best_params 
         for param in best_param.keys():
             config[param] = best_param[param] 
-    if pretrain_type == "mlp":
+    if pretrain_type == "mlp" or pretrain_type=='sentinel2_mlp':
         sentinel_mlp = MLP(12,
                 config['num_layers'] if config is not None else 4,
                 config['hidden_dim'] if config is not None else 256)
         backbone_model_name = 'backbone_sentinel'
         emb_dim = config['hidden_dim'] if config is not None else 256
-    if pretrain_type == "resmlp":
+    if pretrain_type == "resmlp" or pretrain_type=='sentinel2_resmlp':
         sentinel_mlp = ResMLP(12,
                 config['num_layers'] if config is not None else 4,
                 config['hidden_dim'] if config is not None else 256)

@@ -83,5 +83,20 @@ slurm_scripts/planet_sentinel_baseline_val_9/
 slurm_scripts/planet_sentinel_multimodality_bert_style_self_supervised/
 slurm_scripts/temporal_transformer_seasonal/
 slurm_scripts/wandb_old/
-
+slurm_scripts/planet_sentinel_baseline_train_0/
+slurm_scripts/planet_sentinel_baseline_train_1/
+slurm_scripts/planet_sentinel_baseline_train_2/
+slurm_scripts/planet_sentinel_baseline_train_3/
+slurm_scripts/planet_sentinel_baseline_train_4/
+slurm_scripts/planet_sentinel_baseline_train_5/
+slurm_scripts/planet_sentinel_baseline_train_6/
+slurm_scripts/planet_sentinel_baseline_train_7/
+slurm_scripts/planet_sentinel_baseline_train_8/
+slurm_scripts/planet_sentinel_baseline_train_9/
+slurm_scripts/sentinel_mlp/
+slurm_scripts/sentinel_resmlp/
+slurm_scripts/wandb_till_07_02/
+slurm_scripts/wandb_till_16_02/
+slurm_scripts/wandb_till_18_02/
+utils/search_index.py
 

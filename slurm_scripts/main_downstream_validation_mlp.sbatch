@@ -10,12 +10,8 @@
 #SBATCH --gres=gpu:1
 #SBATCH --partition=batch
 
-ml stages/2022
-ml PyTorch
-module unload typing-extensions/3.10.0.0
-module unload Pillow-SIMD/9.0.1
-
-source ./multimodality_env/bin/activate
+source /p/scratch/deepacf/kiste/patnala1/planet_sentinel_multimodality/environments/modules.sh
+source /p/scratch/deepacf/kiste/patnala1/planet_sentinel_multimodality/environments/multimodality_env/bin/activate
 
 export PYTHONPATH="${PYTHONPATH}:/p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality"
 
@@ -27,7 +23,7 @@ export MASTER_PORT=12340
 master_addr=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
 export MASTER_ADDR=$master_addr
 
-#for temperature in 0.07 0.7 1.0
+#for scarf in 20 60 
 #do
 #for((number=0;number<10;number++))
 #do
@@ -37,20 +33,20 @@ export MASTER_ADDR=$master_addr
 #		--num_layers 2 3 4 5 6\
 #		--lr 1e-5 1e-3    \
 #		--dropout 0.0 0.6 \
-#		--baseline_hyper_param_file ../hyp_tune_val_lstm2_normalize.pkl \
+#		--baseline_hyper_param_file ../hyp_tune_lstm2.pkl \
 #		--trial_number $number \
 #		--is_normalize \
-#		--pretrain_type mlp \
+#		--pretrain_type sentinel2_mlp \
 #		--self_supervised_loss simclr \
-#		--temperature $temperature \
-#		--scarf 20 \
-#		--dataset val \
-#		--self_supervised_ckpt /p/scratch/deepacf/kiste/patnala1/planet_sentinel_multimodality/checkpoint_files/mlp/simclr/$temperature/20/epoch=99-step=703200.ckpt
+#		--temperature 0.07 \
+#		--scarf $scarf \
+#		--dataset train \
+#		--self_supervised_ckpt sentinel_mlp/simclr/0.07/$scarf/epoch=99-step=703200.ckpt
 #done
 #done
-#
-#
-#for temperature in 0.07 0.7 1.0
+
+
+#for scarf in 20 60 
 #do
 #for((number=0;number<10;number++))
 #do
@@ -60,25 +56,23 @@ export MASTER_ADDR=$master_addr
 #		--num_layers 2 4 6 8\
 #		--lr 1e-5 1e-3    \
 #		--kernel_size 40 80 120 160 \
-#		--baseline_hyper_param_file ../hyp_tune_val_inception2_normalize.pkl \
+#		--baseline_hyper_param_file ../hyp_tune_inception2.pkl \
 #		--trial_number $number \
 #		--is_normalize \
-#		--pretrain_type mlp \
+#		--pretrain_type sentinel2_mlp \
 #		--self_supervised_loss simclr \
-#		--temperature $temperature \
-#		--scarf 20 \
-#		--dataset val \
-#		--self_supervised_ckpt /p/scratch/deepacf/kiste/patnala1/planet_sentinel_multimodality/checkpoint_files/mlp/simclr/$temperature/20/epoch=99-step=703200.ckpt
+#		--temperature 0.07 \
+#		--scarf $scarf \
+#		--dataset train \
+#		--self_supervised_ckpt sentinel_mlp/simclr/0.07/$scarf/epoch=99-step=703200.ckpt
 #
 #done
 #done
+#
 
-
-for scarf in 0 20 60
+for scarf in 60
 do
-for temperature in 0.07 0.7 1.0
-do
-for((number=0;number<10;number++))
+for number in  6 7 8 9
 do
 python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main_downstream.py \
 		--method transformer \
@@ -87,16 +81,14 @@ python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main_down
 		--n_head 2 4 8 \
 		--lr 1e-5 1e-3    \
 		--dropout 0.0 0.6 \
-		--baseline_hyper_param_file ../hyp_tune_val_transformer2_normalize.pkl \
+		--baseline_hyper_param_file ../hyp_tune_transformer2.pkl \
 		--trial_number $number \
 		--is_normalize \
-		--pretrain_type mlp \
+		--pretrain_type mlp\
 		--self_supervised_loss simclr \
-		--temperature $temperature \
+		--temperature 0.07 \
 		--scarf $scarf \
-		--dataset val \
-		--self_supervised_ckpt /p/scratch/deepacf/kiste/patnala1/planet_sentinel_multimodality/checkpoint_files/mlp/simclr/$temperature/$scarf/epoch=99-step=703200.ckpt
-
-done
+		--dataset train \
+		--self_supervised_ckpt /p/scratch/deepacf/kiste/patnala1/planet_sentinel_multimodality/checkpoint_files/mlp/simclr/0.07/$scarf/epoch=99-step=703200.ckpt 
 done
 done
