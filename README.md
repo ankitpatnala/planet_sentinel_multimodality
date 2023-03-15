@@ -1,7 +1,7 @@
 # Planet Sentinel Multimodality
 
 <img src="/doc/multimodal_Schematic_representation.jpg" alt="Workflow"
-	title="Schematic Represenatation" width="480" height="270" />
+	title="Schematic Represenatation" width="640" height="540" />
 
 
 ## Getting started
