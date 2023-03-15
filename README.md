@@ -1,8 +1,7 @@
 # Planet Sentinel Multimodality
 
-x-special/nautilus-clipboard
-copy
-file:///home/junevo/Documents/paper_photos/2nd%20paper/multimodal_schematic_downstream.pdf
+<img src="/doc/multimodal_Schematic_representation.jpg" alt="Workflow"
+	title="Schematic Represenatation" width="480" height="270" />
 
 
 ## Getting started
