@@ -4,7 +4,16 @@
 	title="Schematic Represenatation" width="960" height="480" />
 
 
+## Dataset
+
 The dataset for the experiments can be downloaded from the [link](https://zenodo.org/record/7737587#.ZBHbgNXMJH4)
+
+## Dataset development
+
+In case one wants to setup their own data, they need to download the DENETHOR dataset from the [data portal](https://mlhub.earth/data/dlr_fusion_competition_germany).
+
+Following the downloading of requisite files, the script utils/prepare_data.py for pre-training and data for downstream task1. For downstream task2, the script utils/prepare_val_data.py can be used.
+
 ## Getting started
 
 To make it easy for you to get started with GitLab, here's a list of recommended next steps.
