@@ -31,7 +31,7 @@ export MASTER_ADDR=$master_addr
 #		--baseline_model_type transformer \
 #		--pretrain_type resmlp \
 #		--temperature 0.07 \
-#		--baseline_hyper_param_file ../hyp_tune_transformer.pkl \
+#		--baseline_hyper_param_file ../hyp_tune_transformer2.pkl \
 #		--num_layers 2 4 6 8 \
 #		--hidden_dim 256 512 1024 \
 #		--lr 1e-5 1e-3  \
@@ -51,15 +51,3 @@ python /p/project/deepacf/kiste/patnala1/planet_sentinel_multimodality/main_self
 		--scarf $3
 
 
-# mlp 1.0 simclr 60
-# mlp 1.0 barlow_twins 60
-# resmlp 1.0 simclr 60
-# resmlp 1.0 barlow_twins 60
-
-# mlp 0.7 simclr 60
-# mlp 0.7 barlow_twins 60
-# resmlp 0.7 simclr 60
-# resmlp 0.7 barlow_twins 60
-
-#mlp 0.07 simclr 60
-#resmlp o.07 simclr 60 
