@@ -29,7 +29,11 @@ Create a folder in utils name "h5_folder" and put all the files inside the h5_fo
 git clone <repo>
 cd <repo>
 cd slurm_scripts
+'''
+run_main_downstream.sbatch with 
+
 sbatch <interested_script> #change sbatch directives according to your available resources
+
 ```
 
 
