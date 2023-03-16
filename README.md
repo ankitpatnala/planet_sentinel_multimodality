@@ -30,7 +30,9 @@ git clone <repo>
 cd <repo>
 cd slurm_scripts
 '''
-run_main_downstream.sbatch with 
+run_main.sbatch for baseline supervised experiments
+run_sentinel2_self_supervisd.sbatch for experiments with single models
+run_self_supervised.sbatch for experiments with two modes
 
 sbatch <interested_script> #change sbatch directives according to your available resources
 
