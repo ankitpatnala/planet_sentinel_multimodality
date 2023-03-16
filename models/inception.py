@@ -55,7 +55,7 @@ class InceptionTime(pl.LightningModule):
         self.loss = loss
         self.optim = optimizer
         self.lr = lr
-        self.accuracy = torchmetrics.Accuracy()
+        self.accuracy = torchmetrics.Accuracy(task="multiclass",num_classes=num_classes)
         self.f1 = torchmetrics.classification.MulticlassF1Score(num_classes=num_classes)
         self.accuracy_score = 0.0
         self.f1_score = 0.0
