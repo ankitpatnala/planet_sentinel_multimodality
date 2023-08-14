@@ -59,6 +59,7 @@ class InceptionTime(pl.LightningModule):
         self.f1 = torchmetrics.classification.MulticlassF1Score(num_classes=num_classes)
         self.accuracy_score = 0.0
         self.f1_score = 0.0
+        self.validation_step_outputs=[]
     
     @staticmethod
     def add_model_specific_args(parent_parser):
@@ -96,12 +97,15 @@ class InceptionTime(pl.LightningModule):
         loss = self.loss(y_pred,y-1)
         acc  = self.accuracy(y_pred,y-1)
         f1 = self.f1(y_pred,y-1)
-        return {'val_loss':loss,'val_acc':acc,'val_f1':f1}
+        output = {'val_loss':loss,'val_acc':acc,'val_f1':f1}
+        self.validation_step_outputs.append(output)
+        return output 
 
-    def validation_epoch_end(self,outputs):
+    def on_validation_epoch_end(self):
         loss = []
         acc = []
         f1_score = []
+        outputs = self.validation_step_outputs
         for output in outputs:
             loss.append(output['val_loss'])
             acc.append(output['val_acc'])

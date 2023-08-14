@@ -95,8 +95,9 @@ if __name__ == "__main__":
     #with open("mean_var_list3.pkl",'wb') as pickle_writer:
     #    pickle.dump(mean_var_values,pickle_writer)
     pretraining_time_dataset = PretrainingTimeDataset("../utils/h5_folder/pretraining_time2.h5",is_normalize=True)
+    print(len(pretraining_time_dataset))
     sentinel_data,planet_data = pretraining_time_dataset[10]
-    print(sentinel_data[45],planet_data[102])
+    print(sentinel_data.shape)
 
 
     

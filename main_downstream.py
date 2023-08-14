@@ -53,8 +53,8 @@ if __name__ == "__main__":
     wandb_logger = WandbLogger(project=f"{args.project}_{args.dataset}_{args.trial_number}",
                              config=args.__dict__,
                              version=version)
-    trainer = pl.Trainer.from_argparse_args(
-            args,
+
+    trainer = pl.Trainer(
             accelerator='gpu',
             devices=1,
             max_epochs=20,

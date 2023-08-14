@@ -2,7 +2,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
-from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.loggers.wandb import WandbLogger
 
 from utils.simclr import simclr_loss_func
 from datasets.pretrain_dataloader import PretrainingDataset,pretrain_dataloader

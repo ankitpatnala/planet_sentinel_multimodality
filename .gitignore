@@ -99,4 +99,9 @@ slurm_scripts/wandb_till_07_02/
 slurm_scripts/wandb_till_16_02/
 slurm_scripts/wandb_till_18_02/
 utils/search_index.py
-
+slurm_scripts/sentinel_temporal_transformer/
+slurm_scripts/temporal_transformer/
+slurm_scripts/wandb_env/
+slurm_scripts/wandb_till_15_05/
+slurm_scripts/wandb_till_16_05/
+slurm_scripts/multimodality_env2/

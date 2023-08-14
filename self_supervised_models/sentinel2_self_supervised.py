@@ -12,12 +12,11 @@ from callbacks.callbacks import SelfSupervisedCallback
 
 
 def scarf(percentage,batch_data):
-    if torch.randn(1).uniform_(0,1) < 0.5 :
-        if percentage < 100:
-            n,c = batch_data.shape
-            channels_to_corrupt = torch.randperm(c)[:int(percentage*c/100)]
-            replacement_data = (torch.randint(1,n-1,size=(n,))+torch.arange(n))%n
-            batch_data[:,channels_to_corrupt] = batch_data[replacement_data][:,channels_to_corrupt]
+    if percentage < 100:
+        n,c = batch_data.shape
+        channels_to_corrupt = torch.randperm(c)[:int(percentage*c/100)]
+        replacement_data = (torch.randint(1,n-1,size=(n,))+torch.arange(n))%n
+        batch_data[:,channels_to_corrupt] = batch_data[replacement_data][:,channels_to_corrupt]
     return batch_data
 
 class Sentinel2Scarf(pl.LightningModule):
